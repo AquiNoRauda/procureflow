@@ -9,12 +9,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, FileDown, PackageOpen } from 'lucide-react-native';
-import { useOrderItems } from '@/lib/hooks/use-orders';
+import { ChevronLeft, FileDown, PackageOpen, RotateCcw } from 'lucide-react-native';
+import { useOrderItems, useUpdateOrder } from '@/lib/hooks/use-orders';
 import { exportOrderPDF, exportSupplierPDF } from '@/lib/pdf-export';
 import type { PurchaseItem } from '@/lib/hooks/use-purchases';
 import { useCatalog } from '@/lib/hooks/use-catalog';
 import { getSupplierColor } from '@/lib/catalog';
+import { useOrderStore } from '@/lib/state/order-store';
 
 interface SupplierSection {
   title: string;
@@ -38,6 +39,9 @@ export default function OrderDetailScreen() {
   const { id, name, customer } = useLocalSearchParams<{ id: string; name: string; customer: string }>();
   const customerName = customer && customer.length > 0 ? customer : null;
   const [exporting, setExporting] = useState(false);
+  const [reopening, setReopening] = useState(false);
+  const updateOrder = useUpdateOrder();
+  const setActiveOrderId = useOrderStore(s => s.setActiveOrderId);
 
   const { data: items = [], isLoading } = useOrderItems(id ?? null);
 
@@ -89,6 +93,33 @@ export default function OrderDetailScreen() {
       setExporting(false);
     }
   }, [items]);
+
+  const handleReopen = useCallback(() => {
+    if (!id) return;
+    Alert.alert(
+      'Reopen Order',
+      'This will move the order back to drafts so you can edit it again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reopen',
+          style: 'default',
+          onPress: async () => {
+            setReopening(true);
+            try {
+              await updateOrder.mutateAsync({ id, status: 'draft' });
+              setActiveOrderId(id);
+              router.back();
+            } catch {
+              Alert.alert('Error', 'Could not reopen the order. Please try again.');
+            } finally {
+              setReopening(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [id, updateOrder, setActiveOrderId]);
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SupplierSection }) => {
@@ -230,29 +261,53 @@ export default function OrderDetailScreen() {
             </Text>
           </View>
           {items.length > 0 && (
-            <TouchableOpacity
-              onPress={handleExport}
-              disabled={exporting}
-              testID="export-pdf-button"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 10,
-                backgroundColor: COLORS.accent,
-                opacity: exporting ? 0.6 : 1,
-              }}>
-              {exporting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <FileDown size={15} color="#ffffff" />
-              )}
-              <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>
-                {exporting ? 'Exporting…' : 'Export All'}
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={handleReopen}
+                disabled={reopening}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: COLORS.card,
+                  borderWidth: 1,
+                  borderColor: COLORS.cardBorder,
+                  opacity: reopening ? 0.6 : 1,
+                }}>
+                {reopening
+                  ? <ActivityIndicator size="small" color={COLORS.text} />
+                  : <RotateCcw size={14} color={COLORS.text} />}
+                <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '600' }}>
+                  Reopen
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleExport}
+                disabled={exporting}
+                testID="export-pdf-button"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: COLORS.accent,
+                  opacity: exporting ? 0.6 : 1,
+                }}>
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <FileDown size={15} color="#ffffff" />
+                )}
+                <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>
+                  {exporting ? 'Exporting…' : 'Export All'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 

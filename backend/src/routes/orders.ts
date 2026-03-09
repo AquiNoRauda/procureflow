@@ -55,6 +55,7 @@ ordersRouter.patch("/:id", async (c) => {
     data: {
       ...(body.name ? { name: body.name.trim() } : {}),
       ...(body.status === "completed" ? { status: "completed", completedAt: new Date() } : {}),
+      ...(body.status === "draft" ? { status: "draft", completedAt: null } : {}),
       ...(body.customer !== undefined ? { customer: body.customer } : {}),
     },
     include: { _count: { select: { items: true } } },
