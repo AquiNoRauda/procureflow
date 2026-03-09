@@ -5,11 +5,12 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { X, ChevronRight, Clock, PackageOpen } from 'lucide-react-native';
-import { useOrders } from '@/lib/hooks/use-orders';
+import { X, ChevronRight, Clock, PackageOpen, Trash2 } from 'lucide-react-native';
+import { useOrders, useDeleteOrder } from '@/lib/hooks/use-orders';
 import type { Order } from '@/lib/hooks/use-orders';
 
 const COLORS = {
@@ -33,6 +34,22 @@ function formatDate(dateStr: string): string {
 
 export default function OrderHistoryScreen() {
   const { data: orders = [], isLoading } = useOrders();
+  const deleteOrder = useDeleteOrder();
+
+  const handleDelete = (order: Order) => {
+    Alert.alert(
+      'Delete Order',
+      `Delete "${order.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteOrder.mutate(order.id),
+        },
+      ]
+    );
+  };
 
   const completed = useMemo(
     () =>
@@ -58,6 +75,8 @@ export default function OrderHistoryScreen() {
     return (
       <TouchableOpacity
         onPress={() => handleOrderPress(item)}
+        onLongPress={() => handleDelete(item)}
+        delayLongPress={400}
         testID={`history-order-${item.id}`}
         style={{
           backgroundColor: COLORS.card,
@@ -93,6 +112,12 @@ export default function OrderHistoryScreen() {
             </View>
           </View>
         </View>
+        <TouchableOpacity
+          onPress={() => handleDelete(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ padding: 6, marginRight: 4 }}>
+          <Trash2 size={16} color="#EF4444" />
+        </TouchableOpacity>
         <ChevronRight size={20} color={COLORS.textSecondary} />
       </TouchableOpacity>
     );
