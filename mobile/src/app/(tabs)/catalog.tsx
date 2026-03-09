@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -18,9 +19,10 @@ import useCatalogStore, {
   CatalogItem,
   SUPPLIER_PALETTE,
 } from '@/lib/state/catalog-store';
-import { Plus, Trash2, ChevronRight, X, Check, BookOpen, Tag } from 'lucide-react-native';
+import { Plus, Trash2, ChevronRight, X, Check, BookOpen, Tag, FileDown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { exportCatalogPDF } from '@/lib/pdf-export';
 
 interface Section {
   supplier: CatalogSupplier;
@@ -266,6 +268,19 @@ export default function CatalogScreen() {
   const [supplierModal, setSupplierModal] = useState<{ visible: boolean; existing: CatalogSupplier | null }>({ visible: false, existing: null });
   const [itemModal, setItemModal] = useState<{ visible: boolean; supplier: CatalogSupplier | null }>({ visible: false, supplier: null });
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCatalog = useCallback(async () => {
+    if (suppliers.length === 0) return;
+    setExporting(true);
+    try {
+      await exportCatalogPDF(suppliers, catalogItems);
+    } catch {
+      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }, [suppliers, catalogItems]);
 
   const colors = useMemo(() => ({
     bg: isDark ? '#0F172A' : '#F8FAFC',
@@ -363,12 +378,38 @@ export default function CatalogScreen() {
               {suppliers.length} suppliers · {catalogItems.length} items
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => setSupplierModal({ visible: true, existing: null })}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 }}>
-            <Plus size={16} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Supplier</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {suppliers.length > 0 && (
+              <TouchableOpacity
+                onPress={handleExportCatalog}
+                disabled={exporting}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+                  borderWidth: 1,
+                  borderColor: colors.cardBorder,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  borderRadius: 12,
+                  opacity: exporting ? 0.6 : 1,
+                }}>
+                {exporting
+                  ? <ActivityIndicator size="small" color={colors.accent} />
+                  : <FileDown size={15} color={colors.accent} />}
+                <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>
+                  {exporting ? 'Exporting…' : 'PDF'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => setSupplierModal({ visible: true, existing: null })}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 }}>
+              <Plus size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Supplier</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}>
