@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
-import usePurchasingStore, { PurchaseItem } from '@/lib/state/purchasing-store';
+import { usePurchases, useUpdatePurchaseQty, useRemovePurchaseItem, useClearSupplierPurchases } from '@/lib/hooks/use-purchases';
+import { PurchaseItem } from '@/lib/hooks/use-purchases';
 import { SUPPLIER_COLORS } from '@/lib/catalog';
-import { Minus, Plus, Trash2, Truck, PackageOpen, FileDown } from 'lucide-react-native';
+import { Minus, Plus, Truck, PackageOpen, FileDown } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { exportOrderPDF } from '@/lib/pdf-export';
@@ -27,10 +28,10 @@ export default function SupplierScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const items = usePurchasingStore((s) => s.items);
-  const updateQuantity = usePurchasingStore((s) => s.updateQuantity);
-  const removeItem = usePurchasingStore((s) => s.removeItem);
-  const clearSupplier = usePurchasingStore((s) => s.clearSupplier);
+  const { data: items = [] } = usePurchases();
+  const updatePurchaseQty = useUpdatePurchaseQty();
+  const removePurchaseItem = useRemovePurchaseItem();
+  const clearSupplierPurchases = useClearSupplierPurchases();
 
   const [exporting, setExporting] = useState(false);
 
@@ -79,22 +80,22 @@ export default function SupplierScreen() {
 
   const handleIncrease = useCallback(
     (item: PurchaseItem) => {
-      updateQuantity(item.id, item.quantity + 1);
+      updatePurchaseQty.mutate({ id: item.id, quantity: item.quantity + 1 });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [updateQuantity]
+    [updatePurchaseQty]
   );
 
   const handleDecrease = useCallback(
     (item: PurchaseItem) => {
       if (item.quantity <= 1) {
-        removeItem(item.id);
+        removePurchaseItem.mutate(item.id);
       } else {
-        updateQuantity(item.id, item.quantity - 1);
+        updatePurchaseQty.mutate({ id: item.id, quantity: item.quantity - 1 });
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [updateQuantity, removeItem]
+    [updatePurchaseQty, removePurchaseItem]
   );
 
   const handleClearSupplier = useCallback(
@@ -108,14 +109,14 @@ export default function SupplierScreen() {
             text: 'Clear',
             style: 'destructive',
             onPress: () => {
-              clearSupplier(supplier);
+              clearSupplierPurchases.mutate(supplier);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             },
           },
         ]
       );
     },
-    [clearSupplier]
+    [clearSupplierPurchases]
   );
 
   const renderSectionHeader = useCallback(
@@ -156,7 +157,7 @@ export default function SupplierScreen() {
                 </Text>
               </View>
               <TouchableOpacity onPress={() => handleClearSupplier(section.title)}>
-                <Trash2 size={16} color={supplierColor.text} />
+                <Text style={{ color: supplierColor.text, fontSize: 13, fontWeight: '600' }}>Clear</Text>
               </TouchableOpacity>
             </View>
             <View className="flex-row items-center mt-2" style={{ gap: 12 }}>

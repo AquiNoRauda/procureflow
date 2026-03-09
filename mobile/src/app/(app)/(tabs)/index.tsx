@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
-import usePurchasingStore, { PurchaseItem } from '@/lib/state/purchasing-store';
-import useCatalogStore from '@/lib/state/catalog-store';
-import { getCatalogItemByName, SUPPLIER_COLORS, getSupplierColor } from '@/lib/catalog';
+import { usePurchases, useAddPurchaseItem, useUpdatePurchaseQty, useRemovePurchaseItem, useClearAllPurchases } from '@/lib/hooks/use-purchases';
+import { PurchaseItem } from '@/lib/hooks/use-purchases';
+import { useCatalog } from '@/lib/hooks/use-catalog';
+import { getCatalogItemByName, getSupplierColor } from '@/lib/catalog';
 import { Plus, Minus, Trash2, Send, Package } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -56,14 +57,14 @@ export default function OrdersScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const items = usePurchasingStore((s) => s.items);
-  const addItem = usePurchasingStore((s) => s.addItem);
-  const updateQuantity = usePurchasingStore((s) => s.updateQuantity);
-  const removeItem = usePurchasingStore((s) => s.removeItem);
-  const clearAll = usePurchasingStore((s) => s.clearAll);
+  const { data: items = [] } = usePurchases();
+  const addPurchaseItem = useAddPurchaseItem();
+  const updatePurchaseQty = useUpdatePurchaseQty();
+  const removePurchaseItem = useRemovePurchaseItem();
+  const clearAllPurchases = useClearAllPurchases();
 
-  const catalogItems = useCatalogStore((s) => s.items);
-  const catalogSuppliers = useCatalogStore((s) => s.suppliers);
+  const { data: catalogData } = useCatalog();
+  const catalogItems = catalogData?.items ?? [];
 
   const [bulkText, setBulkText] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -89,7 +90,7 @@ export default function OrdersScreen() {
         notFound.push(name);
         continue;
       }
-      addItem(entry.name, entry.supplierName, qty, entry.unit);
+      addPurchaseItem.mutate({ name: entry.name, supplier: entry.supplierName, quantity: qty, unit: entry.unit });
       addedCount++;
     }
 
@@ -105,7 +106,7 @@ export default function OrdersScreen() {
         `Not in catalog: ${notFound.join(', ')}\n\nCheck spelling or add them to the catalog.`
       );
     }
-  }, [bulkText, addItem]);
+  }, [bulkText, addPurchaseItem, catalogItems]);
 
   const handleClearAll = useCallback(() => {
     Alert.alert('Clear All Orders', 'Are you sure you want to clear all items?', [
@@ -114,39 +115,39 @@ export default function OrdersScreen() {
         text: 'Clear',
         style: 'destructive',
         onPress: () => {
-          clearAll();
+          clearAllPurchases.mutate();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         },
       },
     ]);
-  }, [clearAll]);
+  }, [clearAllPurchases]);
 
   const handleIncrease = useCallback(
     (item: PurchaseItem) => {
-      updateQuantity(item.id, item.quantity + 1);
+      updatePurchaseQty.mutate({ id: item.id, quantity: item.quantity + 1 });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [updateQuantity]
+    [updatePurchaseQty]
   );
 
   const handleDecrease = useCallback(
     (item: PurchaseItem) => {
       if (item.quantity <= 1) {
-        removeItem(item.id);
+        removePurchaseItem.mutate(item.id);
       } else {
-        updateQuantity(item.id, item.quantity - 1);
+        updatePurchaseQty.mutate({ id: item.id, quantity: item.quantity - 1 });
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [updateQuantity, removeItem]
+    [updatePurchaseQty, removePurchaseItem]
   );
 
   const handleDelete = useCallback(
     (item: PurchaseItem) => {
-      removeItem(item.id);
+      removePurchaseItem.mutate(item.id);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     },
-    [removeItem]
+    [removePurchaseItem]
   );
 
   const totalItems = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
@@ -167,11 +168,7 @@ export default function OrdersScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: PurchaseItem }) => {
-      const supplierColor = SUPPLIER_COLORS[item.supplier] || {
-        bg: '#F3F4F6',
-        text: '#374151',
-        accent: '#6B7280',
-      };
+      const supplierColor = getSupplierColor(item.supplier);
 
       return (
         <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>

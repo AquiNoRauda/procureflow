@@ -1,13 +1,18 @@
 import "@vibecodeapp/proxy"; // DO NOT REMOVE OTHERWISE VIBECODE PROXY WILL NOT WORK
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import "./env";
-import { sampleRouter } from "./routes/sample";
 import { logger } from "hono/logger";
+import { auth } from "./auth";
+import { purchaseRouter } from "./routes/purchases";
+import { catalogRouter } from "./routes/catalog";
 
-const app = new Hono();
+const app = new Hono<{
+  Variables: {
+    user: typeof auth.$Infer.Session.user | null;
+    session: typeof auth.$Infer.Session.session | null;
+  };
+}>();
 
-// CORS middleware - validates origin against allowlist
 const allowed = [
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -26,18 +31,25 @@ app.use(
   })
 );
 
-// Logging
 app.use("*", logger());
 
-// Health check endpoint
+// Auth session middleware — populates user/session for all routes
+app.use("*", async (c, next) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  c.set("user", session?.user ?? null);
+  c.set("session", session?.session ?? null);
+  await next();
+});
+
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// Routes
-app.route("/api/sample", sampleRouter);
+// Auth routes
+app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+// App routes
+app.route("/api/purchases", purchaseRouter);
+app.route("/api/catalog", catalogRouter);
 
 const port = Number(process.env.PORT) || 3000;
 
-export default {
-  port,
-  fetch: app.fetch,
-};
+export default { port, fetch: app.fetch };

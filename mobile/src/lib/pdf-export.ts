@@ -1,7 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { PurchaseItem } from '@/lib/state/purchasing-store';
-import { CatalogItem, CatalogSupplier } from '@/lib/state/catalog-store';
+import { PurchaseItem } from '@/lib/hooks/use-purchases';
+import { CatalogItem, CatalogSupplier } from '@/lib/hooks/use-catalog';
 
 interface SupplierGroup {
   supplier: string;

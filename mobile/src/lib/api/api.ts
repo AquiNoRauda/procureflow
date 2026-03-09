@@ -1,6 +1,6 @@
 import { fetch } from "expo/fetch";
+import { authClient } from "../auth/auth-client";
 
-// Response envelope type - all app routes return { data: T }
 interface ApiResponse<T> {
   data: T;
 }
@@ -13,22 +13,21 @@ const request = async <T>(
 ): Promise<T> => {
   const response = await fetch(`${baseUrl}${url}`, {
     ...options,
-    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    credentials: "include",
+    headers: {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      Cookie: authClient.getCookie(),
+    },
   });
 
-  // 1. Handle 204 No Content
-  if (response.status === 204) {
-    return undefined as T;
-  }
+  if (response.status === 204) return undefined as T;
 
-  // 2. JSON responses: parse and unwrap { data }
   const contentType = response.headers.get("content-type");
   if (contentType?.includes("application/json")) {
     const json: ApiResponse<T> = await response.json();
     return json.data;
   }
 
-  // 3. Non-JSON: return undefined
   return undefined as T;
 };
 

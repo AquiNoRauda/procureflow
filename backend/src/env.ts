@@ -5,9 +5,11 @@ import { z } from "zod";
  * This ensures all required environment variables are present and valid
  */
 const envSchema = z.object({
-  // Server Configuration
   PORT: z.string().optional().default("3000"),
   NODE_ENV: z.string().optional(),
+  DATABASE_URL: z.string().default("file:./prisma/dev.db"),
+  BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
+  BACKEND_URL: z.string().optional().default("http://localhost:3000"),
 });
 
 /**
