@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, FileDown, PackageOpen } from 'lucide-react-native';
 import { useOrderItems } from '@/lib/hooks/use-orders';
-import { exportOrderPDF } from '@/lib/pdf-export';
+import { exportOrderPDF, exportSupplierPDF } from '@/lib/pdf-export';
 import type { PurchaseItem } from '@/lib/hooks/use-purchases';
 import { useCatalog } from '@/lib/hooks/use-catalog';
 import { getSupplierColor } from '@/lib/catalog';
@@ -63,6 +63,20 @@ export default function OrderDetailScreen() {
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [items]);
 
+  const [exportingSupplier, setExportingSupplier] = useState<string | null>(null);
+
+  const handleExportSupplier = useCallback(async (supplier: string, supplierItems: PurchaseItem[]) => {
+    setExportingSupplier(supplier);
+    try {
+      const accentColor = supplierColorMap[supplier];
+      await exportSupplierPDF(supplier, supplierItems, accentColor);
+    } catch {
+      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+    } finally {
+      setExportingSupplier(null);
+    }
+  }, [supplierColorMap]);
+
   const handleExport = useCallback(async () => {
     if (items.length === 0) return;
     setExporting(true);
@@ -78,6 +92,7 @@ export default function OrderDetailScreen() {
   const renderSectionHeader = useCallback(
     ({ section }: { section: SupplierSection }) => {
       const color = getSupplierColor(section.title, supplierColorMap[section.title]);
+      const isExporting = exportingSupplier === section.title;
       return (
       <View
         style={{
@@ -95,10 +110,10 @@ export default function OrderDetailScreen() {
             borderLeftColor: color.accent,
           }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ color: color.accent, fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: color.accent, fontSize: 15, fontWeight: '700', flex: 1 }}>
               {section.title}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
               <View
                 style={{
                   backgroundColor: color.accent + '30',
@@ -121,13 +136,31 @@ export default function OrderDetailScreen() {
                   {section.totalQty} qty
                 </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => handleExportSupplier(section.title, section.data)}
+                disabled={isExporting || !!exportingSupplier}
+                style={{
+                  backgroundColor: color.accent,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 7,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  opacity: isExporting || !!exportingSupplier ? 0.6 : 1,
+                }}>
+                {isExporting
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <FileDown size={12} color="#fff" />}
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>PDF</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
       </View>
       );
     },
-    [supplierColorMap]
+    [supplierColorMap, exportingSupplier, handleExportSupplier]
   );
 
   const renderItem = useCallback(
@@ -216,7 +249,7 @@ export default function OrderDetailScreen() {
                 <FileDown size={15} color="#ffffff" />
               )}
               <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>
-                {exporting ? 'Exporting…' : 'Export PDF'}
+                {exporting ? 'Exporting…' : 'Export All'}
               </Text>
             </TouchableOpacity>
           )}
