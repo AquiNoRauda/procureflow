@@ -13,6 +13,8 @@ import { ChevronLeft, FileDown, PackageOpen } from 'lucide-react-native';
 import { useOrderItems } from '@/lib/hooks/use-orders';
 import { exportOrderPDF } from '@/lib/pdf-export';
 import type { PurchaseItem } from '@/lib/hooks/use-purchases';
+import { useCatalog } from '@/lib/hooks/use-catalog';
+import { getSupplierColor } from '@/lib/catalog';
 
 interface SupplierSection {
   title: string;
@@ -37,6 +39,13 @@ export default function OrderDetailScreen() {
   const [exporting, setExporting] = useState(false);
 
   const { data: items = [], isLoading } = useOrderItems(id ?? null);
+
+  const { data: catalogData } = useCatalog();
+  const supplierColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (catalogData?.suppliers ?? []).forEach(s => { map[s.name] = s.color; });
+    return map;
+  }, [catalogData?.suppliers]);
 
   const sections: SupplierSection[] = useMemo(() => {
     const grouped: Record<string, PurchaseItem[]> = {};
@@ -67,7 +76,9 @@ export default function OrderDetailScreen() {
   }, [items]);
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: SupplierSection }) => (
+    ({ section }: { section: SupplierSection }) => {
+      const color = getSupplierColor(section.title, supplierColorMap[section.title]);
+      return (
       <View
         style={{
           backgroundColor: COLORS.sectionBg,
@@ -77,20 +88,20 @@ export default function OrderDetailScreen() {
         }}>
         <View
           style={{
-            backgroundColor: COLORS.accentLight,
+            backgroundColor: color.accent + '20',
             borderRadius: 12,
             padding: 12,
             borderLeftWidth: 4,
-            borderLeftColor: COLORS.accent,
+            borderLeftColor: color.accent,
           }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: color.accent, fontSize: 15, fontWeight: '700' }}>
               {section.title}
             </Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View
                 style={{
-                  backgroundColor: COLORS.accent + '30',
+                  backgroundColor: color.accent + '30',
                   paddingHorizontal: 8,
                   paddingVertical: 3,
                   borderRadius: 6,
@@ -101,7 +112,7 @@ export default function OrderDetailScreen() {
               </View>
               <View
                 style={{
-                  backgroundColor: COLORS.accent + '30',
+                  backgroundColor: color.accent + '30',
                   paddingHorizontal: 8,
                   paddingVertical: 3,
                   borderRadius: 6,
@@ -114,8 +125,9 @@ export default function OrderDetailScreen() {
           </View>
         </View>
       </View>
-    ),
-    []
+      );
+    },
+    [supplierColorMap]
   );
 
   const renderItem = useCallback(
