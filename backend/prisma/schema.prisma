@@ -24,6 +24,7 @@ model User {
   purchaseItems  PurchaseItem[]
   catalogSuppliers CatalogSupplier[]
   catalogItems   CatalogItem[]
+  orders         Order[]
 }
 
 model Session {
@@ -66,6 +67,17 @@ model Verification {
 
 // ── App tables ────────────────────────────────────────────────────────────────
 
+model Order {
+  id          String         @id
+  name        String
+  status      String         @default("draft")
+  createdAt   DateTime       @default(now())
+  completedAt DateTime?
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       PurchaseItem[]
+}
+
 model PurchaseItem {
   id         String   @id
   name       String
@@ -75,6 +87,8 @@ model PurchaseItem {
   createdAt  DateTime @default(now())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model CatalogSupplier {

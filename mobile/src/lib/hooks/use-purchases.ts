@@ -11,21 +11,28 @@ export interface PurchaseItem {
   userId?: string;
 }
 
-export const PURCHASES_KEY = ["purchases"] as const;
+export const purchasesKey = (orderId: string | null) =>
+  ["purchases", orderId] as const;
 
-export function usePurchases() {
+export function usePurchases(orderId: string | null) {
   return useQuery({
-    queryKey: PURCHASES_KEY,
-    queryFn: () => api.get<PurchaseItem[]>("/api/purchases"),
+    queryKey: purchasesKey(orderId),
+    queryFn: () => api.get<PurchaseItem[]>(`/api/purchases?orderId=${orderId}`),
+    enabled: !!orderId,
   });
 }
 
 export function useAddPurchaseItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; supplier: string; quantity: number; unit: string }) =>
-      api.post<PurchaseItem>("/api/purchases", body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PURCHASES_KEY }),
+    mutationFn: (body: {
+      name: string;
+      supplier: string;
+      quantity: number;
+      unit: string;
+      orderId: string;
+    }) => api.post<PurchaseItem>("/api/purchases", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchases"] }),
   });
 }
 
@@ -34,7 +41,7 @@ export function useUpdatePurchaseQty() {
   return useMutation({
     mutationFn: ({ id, quantity }: { id: string; quantity: number }) =>
       api.patch<void>(`/api/purchases/${id}`, { quantity }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PURCHASES_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchases"] }),
   });
 }
 
@@ -42,23 +49,26 @@ export function useRemovePurchaseItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<void>(`/api/purchases/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PURCHASES_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchases"] }),
   });
 }
 
 export function useClearAllPurchases() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.delete<void>("/api/purchases"),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PURCHASES_KEY }),
+    mutationFn: (orderId: string) =>
+      api.delete<void>(`/api/purchases?orderId=${orderId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchases"] }),
   });
 }
 
 export function useClearSupplierPurchases() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (supplier: string) =>
-      api.delete<void>(`/api/purchases/supplier/${encodeURIComponent(supplier)}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PURCHASES_KEY }),
+    mutationFn: ({ orderId, supplier }: { orderId: string; supplier: string }) =>
+      api.delete<void>(
+        `/api/purchases/supplier/${encodeURIComponent(supplier)}?orderId=${orderId}`
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchases"] }),
   });
 }

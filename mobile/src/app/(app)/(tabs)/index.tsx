@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,15 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { usePurchases, useAddPurchaseItem, useUpdatePurchaseQty, useRemovePurchaseItem, useClearAllPurchases } from '@/lib/hooks/use-purchases';
 import { PurchaseItem } from '@/lib/hooks/use-purchases';
+import { useOrderStore } from '@/lib/state/order-store';
+import { useOrders, useCreateOrder, Order } from '@/lib/hooks/use-orders';
 import { useCatalog } from '@/lib/hooks/use-catalog';
 import { getCatalogItemByName, getSupplierColor } from '@/lib/catalog';
-import { Plus, Minus, Trash2, Send, Package } from 'lucide-react-native';
+import { Plus, Minus, Trash2, Send, Package, ChevronDown } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -57,7 +60,36 @@ export default function OrdersScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const { data: items = [] } = usePurchases();
+  const { data: orders = [] } = useOrders();
+  const createOrder = useCreateOrder();
+  const activeOrderId = useOrderStore((s) => s.activeOrderId);
+  const setActiveOrderId = useOrderStore((s) => s.setActiveOrderId);
+
+  const drafts = useMemo(() => orders.filter((o) => o.status === 'draft'), [orders]);
+  const activeOrder = useMemo(
+    () => orders.find((o) => o.id === activeOrderId) ?? null,
+    [orders, activeOrderId]
+  );
+
+  useEffect(() => {
+    if (createOrder.isPending) return;
+
+    const draftOrders = orders.filter((o) => o.status === 'draft');
+
+    if (!activeOrderId || !draftOrders.find((o) => o.id === activeOrderId)) {
+      if (draftOrders.length > 0) {
+        setActiveOrderId(draftOrders[0].id);
+      } else if (draftOrders.length === 0) {
+        createOrder.mutate(
+          { name: 'Order #1' },
+          { onSuccess: (newOrder: Order) => setActiveOrderId(newOrder.id) }
+        );
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, activeOrderId]);
+
+  const { data: items = [] } = usePurchases(activeOrderId);
   const addPurchaseItem = useAddPurchaseItem();
   const updatePurchaseQty = useUpdatePurchaseQty();
   const removePurchaseItem = useRemovePurchaseItem();
@@ -98,7 +130,8 @@ export default function OrdersScreen() {
         notFound.push(name);
         continue;
       }
-      addPurchaseItem.mutate({ name: entry.name, supplier: entry.supplierName, quantity: qty, unit: entry.unit });
+      if (!activeOrderId) continue;
+      addPurchaseItem.mutate({ name: entry.name, supplier: entry.supplierName, quantity: qty, unit: entry.unit, orderId: activeOrderId });
       addedCount++;
     }
 
@@ -123,7 +156,7 @@ export default function OrdersScreen() {
         text: 'Clear',
         style: 'destructive',
         onPress: () => {
-          clearAllPurchases.mutate();
+          if (activeOrderId) clearAllPurchases.mutate(activeOrderId);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         },
       },
@@ -298,6 +331,29 @@ export default function OrdersScreen() {
             )}
           </View>
         </View>
+
+        {/* Order Picker Banner */}
+        <TouchableOpacity
+          onPress={() => router.push('/order-picker')}
+          className="mx-4 mb-3 flex-row items-center justify-between px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"
+          activeOpacity={0.7}
+        >
+          <View className="flex-row items-center gap-2">
+            <View className="w-2 h-2 rounded-full bg-blue-500" />
+            <Text className="text-slate-100 font-semibold text-base">
+              {activeOrder?.name ?? 'No Order Selected'}
+            </Text>
+            <View className="px-2 py-0.5 rounded-full bg-blue-500/20">
+              <Text className="text-blue-400 text-xs font-medium">
+                {activeOrder?.status === 'draft' ? 'Draft' : activeOrder?.status ?? ''}
+              </Text>
+            </View>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-slate-400 text-sm">{items.length} items</Text>
+            <ChevronDown size={16} color="#94a3b8" />
+          </View>
+        </TouchableOpacity>
 
         {/* Bulk Insert Bar */}
         <View

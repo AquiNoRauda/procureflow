@@ -30,6 +30,28 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="verify-otp" />
         </Stack.Protected>
+        <Stack.Screen
+          name="order-picker"
+          options={{
+            presentation: 'formSheet',
+            sheetGrabberVisible: true,
+            sheetAllowedDetents: [0.6],
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="order-history"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="order-detail"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

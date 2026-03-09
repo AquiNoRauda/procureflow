@@ -5,13 +5,16 @@ import { logger } from "hono/logger";
 import { auth } from "./auth";
 import { purchaseRouter } from "./routes/purchases";
 import { catalogRouter } from "./routes/catalog";
+import { ordersRouter } from "./routes/orders";
+import { prisma } from "./prisma";
+import { randomUUID } from "crypto";
 
-const app = new Hono<{
-  Variables: {
-    user: typeof auth.$Infer.Session.user | null;
-    session: typeof auth.$Infer.Session.session | null;
-  };
-}>();
+export type Variables = {
+  user: typeof auth.$Infer.Session.user | null;
+  session: typeof auth.$Infer.Session.session | null;
+};
+
+const app = new Hono<{ Variables: Variables }>();
 
 const allowed = [
   /^http:\/\/localhost(:\d+)?$/,
@@ -49,6 +52,48 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 // App routes
 app.route("/api/purchases", purchaseRouter);
 app.route("/api/catalog", catalogRouter);
+app.route("/api/orders", ordersRouter);
+
+// Startup migration: assign orphan PurchaseItems (no orderId) to a "Previous Order"
+async function runStartupMigration() {
+  try {
+    // Use raw query since orderId is now non-nullable in the Prisma schema,
+    // but legacy rows in SQLite may still have NULL values.
+    const orphanItems = await prisma.$queryRaw<{ id: string; userId: string }[]>`
+      SELECT id, userId FROM PurchaseItem WHERE orderId IS NULL
+    `;
+
+    if (orphanItems.length === 0) return;
+
+    // Group by userId
+    const byUser: Record<string, { id: string; userId: string }[]> = {};
+    for (const item of orphanItems) {
+      if (!byUser[item.userId]) byUser[item.userId] = [];
+      byUser[item.userId]!.push(item);
+    }
+
+    // For each user, create a "Previous Order" and assign items
+    for (const [userId, items] of Object.entries(byUser)) {
+      const order = await prisma.order.create({
+        data: {
+          id: randomUUID(),
+          name: "Previous Order",
+          status: "completed",
+          completedAt: new Date(),
+          userId,
+        },
+      });
+      await prisma.$executeRaw`
+        UPDATE PurchaseItem SET orderId = ${order.id} WHERE userId = ${userId} AND orderId IS NULL
+      `;
+      console.log(`Migrated ${items.length} items for user ${userId} to order ${order.id}`);
+    }
+  } catch (e) {
+    console.error("Startup migration error:", e);
+  }
+}
+
+runStartupMigration();
 
 const port = Number(process.env.PORT) || 3000;
 

@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { usePurchases, useUpdatePurchaseQty, useRemovePurchaseItem, useClearSupplierPurchases } from '@/lib/hooks/use-purchases';
 import { PurchaseItem } from '@/lib/hooks/use-purchases';
+import { useOrderStore } from '@/lib/state/order-store';
 import { useCatalog } from '@/lib/hooks/use-catalog';
 import { getSupplierColor } from '@/lib/catalog';
 import { Minus, Plus, Truck, PackageOpen, FileDown } from 'lucide-react-native';
@@ -29,7 +30,8 @@ export default function SupplierScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const { data: items = [] } = usePurchases();
+  const activeOrderId = useOrderStore((s) => s.activeOrderId);
+  const { data: items = [] } = usePurchases(activeOrderId);
   const updatePurchaseQty = useUpdatePurchaseQty();
   const removePurchaseItem = useRemovePurchaseItem();
   const clearSupplierPurchases = useClearSupplierPurchases();
@@ -118,7 +120,7 @@ export default function SupplierScreen() {
             text: 'Clear',
             style: 'destructive',
             onPress: () => {
-              clearSupplierPurchases.mutate(supplier);
+              if (activeOrderId) clearSupplierPurchases.mutate({ orderId: activeOrderId, supplier });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             },
           },

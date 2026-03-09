@@ -1,54 +1,42 @@
 import { Hono } from "hono";
 import { prisma } from "../prisma";
-import { auth } from "../auth";
+import type { Variables } from "../index";
+import { randomUUID } from "crypto";
 
-const app = new Hono<{
-  Variables: {
-    user: typeof auth.$Infer.Session.user | null;
-    session: typeof auth.$Infer.Session.session | null;
-  };
-}>();
+const app = new Hono<{ Variables: Variables }>();
 
-// Auth guard helper
-function requireAuth(c: any) {
-  const user = c.get("user");
-  if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
-  return null;
+async function getValidOrder(orderId: string | undefined, userId: string) {
+  if (!orderId) return null;
+  return prisma.order.findFirst({ where: { id: orderId, userId } });
 }
 
-// GET /api/purchases — list all purchase items for the current user
+// GET /api/purchases — list purchase items for a specific order
 app.get("/", async (c) => {
-  const guard = requireAuth(c);
-  if (guard) return guard;
-  const user = c.get("user")!;
-
+  const user = c.get("user");
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+  const orderId = c.req.query("orderId");
+  if (!orderId) return c.json({ data: [] });
+  const order = await getValidOrder(orderId, user.id);
+  if (!order) return c.json({ data: [] });
   const items = await prisma.purchaseItem.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, orderId },
     orderBy: { createdAt: "asc" },
   });
   return c.json({ data: items });
 });
 
-// POST /api/purchases — add or merge a purchase item
+// POST /api/purchases — add or merge a purchase item within an order
 app.post("/", async (c) => {
-  const guard = requireAuth(c);
-  if (guard) return guard;
-  const user = c.get("user")!;
+  const user = c.get("user");
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
 
-  const body = await c.req.json<{
-    name: string;
-    supplier: string;
-    quantity: number;
-    unit: string;
-  }>();
+  const body = await c.req.json<{ name: string; supplier: string; quantity: number; unit: string; orderId: string }>();
+  if (!body.orderId) return c.json({ error: { message: "orderId required", code: "VALIDATION" } }, 400);
+  const order = await getValidOrder(body.orderId, user.id);
+  if (!order) return c.json({ error: { message: "Order not found", code: "NOT_FOUND" } }, 404);
 
-  // Merge if same item+supplier already exists
   const existing = await prisma.purchaseItem.findFirst({
-    where: {
-      userId: user.id,
-      name: body.name,
-      supplier: body.supplier,
-    },
+    where: { userId: user.id, orderId: body.orderId, name: body.name, supplier: body.supplier },
   });
 
   if (existing) {
@@ -61,12 +49,13 @@ app.post("/", async (c) => {
 
   const item = await prisma.purchaseItem.create({
     data: {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       name: body.name,
       supplier: body.supplier,
       quantity: body.quantity,
       unit: body.unit,
       userId: user.id,
+      orderId: body.orderId,
     },
   });
   return c.json({ data: item }, 201);
@@ -74,16 +63,15 @@ app.post("/", async (c) => {
 
 // PATCH /api/purchases/:id — update quantity
 app.patch("/:id", async (c) => {
-  const guard = requireAuth(c);
-  if (guard) return guard;
-  const user = c.get("user")!;
+  const user = c.get("user");
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
 
   const { quantity } = await c.req.json<{ quantity: number }>();
   const { id } = c.req.param();
 
   if (quantity <= 0) {
     await prisma.purchaseItem.deleteMany({ where: { id, userId: user.id } });
-    return c.body(null, 204);
+    return new Response(null, { status: 204 });
   }
 
   const item = await prisma.purchaseItem.updateMany({
@@ -91,40 +79,39 @@ app.patch("/:id", async (c) => {
     data: { quantity },
   });
 
-  if (item.count === 0) return c.json({ error: { message: "Not found" } }, 404);
+  if (item.count === 0) return c.json({ error: { message: "Not found", code: "NOT_FOUND" } }, 404);
   return c.json({ data: { id, quantity } });
 });
 
-// DELETE /api/purchases/:id
+// DELETE /api/purchases/:id — delete a single item
 app.delete("/:id", async (c) => {
-  const guard = requireAuth(c);
-  if (guard) return guard;
-  const user = c.get("user")!;
+  const user = c.get("user");
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
 
   await prisma.purchaseItem.deleteMany({ where: { id: c.req.param("id"), userId: user.id } });
-  return c.body(null, 204);
+  return new Response(null, { status: 204 });
 });
 
-// DELETE /api/purchases — clear all
+// DELETE /api/purchases — clear all items for an order
 app.delete("/", async (c) => {
-  const guard = requireAuth(c);
-  if (guard) return guard;
-  const user = c.get("user")!;
-
-  await prisma.purchaseItem.deleteMany({ where: { userId: user.id } });
-  return c.body(null, 204);
+  const user = c.get("user");
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+  const orderId = c.req.query("orderId");
+  if (!orderId) return new Response(null, { status: 204 });
+  await prisma.purchaseItem.deleteMany({ where: { userId: user.id, orderId } });
+  return new Response(null, { status: 204 });
 });
 
-// DELETE /api/purchases/supplier/:name — clear by supplier
+// DELETE /api/purchases/supplier/:name — clear by supplier within an order
 app.delete("/supplier/:name", async (c) => {
-  const guard = requireAuth(c);
-  if (guard) return guard;
-  const user = c.get("user")!;
-
+  const user = c.get("user");
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+  const orderId = c.req.query("orderId");
+  if (!orderId) return new Response(null, { status: 204 });
   await prisma.purchaseItem.deleteMany({
-    where: { userId: user.id, supplier: c.req.param("name") },
+    where: { userId: user.id, orderId, supplier: decodeURIComponent(c.req.param("name")) },
   });
-  return c.body(null, 204);
+  return new Response(null, { status: 204 });
 });
 
 export const purchaseRouter = app;
