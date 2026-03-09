@@ -1,15 +1,20 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   FlatList,
   Alert,
   ActivityIndicator,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { X, Check, Plus, History, Package } from 'lucide-react-native';
+import { X, Check, Plus, History, Package, User } from 'lucide-react-native';
 import { useOrders, useCreateOrder, useUpdateOrder, useDeleteOrder } from '@/lib/hooks/use-orders';
 import { useOrderStore } from '@/lib/state/order-store';
 import type { Order } from '@/lib/hooks/use-orders';
@@ -27,7 +32,283 @@ const COLORS = {
   success: '#22C55E',
   successBg: '#14532D',
   outline: '#334155',
+  overlay: 'rgba(0,0,0,0.6)',
+  inputBg: '#0F172A',
 };
+
+interface NewOrderModalProps {
+  visible: boolean;
+  defaultName: string;
+  onConfirm: (name: string, customer: string) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}
+
+function NewOrderModal({ visible, defaultName, onConfirm, onCancel, isPending }: NewOrderModalProps) {
+  const [name, setName] = useState(defaultName);
+  const [customer, setCustomer] = useState('');
+
+  // Reset fields when modal becomes visible
+  React.useEffect(() => {
+    if (visible) {
+      setName(defaultName);
+      setCustomer('');
+    }
+  }, [visible, defaultName]);
+
+  const handleConfirm = () => {
+    if (!name.trim()) return;
+    onConfirm(name.trim(), customer.trim());
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'flex-end' }}
+          onPress={onCancel}>
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: COLORS.card,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+            }}>
+            {/* Handle bar */}
+            <View
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: COLORS.cardBorder,
+                alignSelf: 'center',
+                marginBottom: 20,
+              }}
+            />
+
+            <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: '700', marginBottom: 20 }}>
+              New Order
+            </Text>
+
+            {/* Order Name */}
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 }}>
+              ORDER NAME
+            </Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Order #3"
+              placeholderTextColor={COLORS.textSecondary}
+              style={{
+                backgroundColor: COLORS.inputBg,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 16,
+                color: COLORS.text,
+                borderWidth: 1,
+                borderColor: COLORS.cardBorder,
+                marginBottom: 16,
+              }}
+              autoCapitalize="words"
+              returnKeyType="next"
+              testID="new-order-name-input"
+            />
+
+            {/* Customer Name */}
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 }}>
+              CUSTOMER <Text style={{ color: COLORS.textSecondary, fontWeight: '400' }}>(optional)</Text>
+            </Text>
+            <TextInput
+              value={customer}
+              onChangeText={setCustomer}
+              placeholder="e.g. Brooklyn, Washington"
+              placeholderTextColor={COLORS.textSecondary}
+              style={{
+                backgroundColor: COLORS.inputBg,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 16,
+                color: COLORS.text,
+                borderWidth: 1,
+                borderColor: COLORS.cardBorder,
+                marginBottom: 24,
+              }}
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={handleConfirm}
+              testID="new-order-customer-input"
+            />
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={onCancel}
+                style={{
+                  flex: 1,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: COLORS.cardBorder,
+                }}
+                testID="new-order-cancel-button">
+                <Text style={{ color: COLORS.textSecondary, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirm}
+                disabled={!name.trim() || isPending}
+                style={{
+                  flex: 2,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  backgroundColor: !name.trim() ? COLORS.accentLight : COLORS.accent,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+                testID="new-order-confirm-button">
+                {isPending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Create Order</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+interface SetCustomerModalProps {
+  visible: boolean;
+  order: Order | null;
+  onConfirm: (customer: string) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}
+
+function SetCustomerModal({ visible, order, onConfirm, onCancel, isPending }: SetCustomerModalProps) {
+  const [customer, setCustomer] = useState('');
+
+  React.useEffect(() => {
+    if (visible && order) {
+      setCustomer(order.customer ?? '');
+    }
+  }, [visible, order]);
+
+  const handleConfirm = () => {
+    onConfirm(customer.trim());
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'flex-end' }}
+          onPress={onCancel}>
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: COLORS.card,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+            }}>
+            <View
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: COLORS.cardBorder,
+                alignSelf: 'center',
+                marginBottom: 20,
+              }}
+            />
+
+            <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: '700', marginBottom: 4 }}>
+              Set Customer
+            </Text>
+            {order ? (
+              <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 20 }}>
+                {order.name}
+              </Text>
+            ) : null}
+
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 }}>
+              CUSTOMER NAME <Text style={{ color: COLORS.textSecondary, fontWeight: '400' }}>(leave blank to clear)</Text>
+            </Text>
+            <TextInput
+              value={customer}
+              onChangeText={setCustomer}
+              placeholder="e.g. Brooklyn, Washington"
+              placeholderTextColor={COLORS.textSecondary}
+              style={{
+                backgroundColor: COLORS.inputBg,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 16,
+                color: COLORS.text,
+                borderWidth: 1,
+                borderColor: COLORS.cardBorder,
+                marginBottom: 24,
+              }}
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={handleConfirm}
+              autoFocus
+              testID="set-customer-input"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={onCancel}
+                style={{
+                  flex: 1,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: COLORS.cardBorder,
+                }}
+                testID="set-customer-cancel-button">
+                <Text style={{ color: COLORS.textSecondary, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirm}
+                disabled={isPending}
+                style={{
+                  flex: 2,
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  backgroundColor: COLORS.accent,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+                testID="set-customer-confirm-button">
+                {isPending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
 
 export default function OrderPickerScreen() {
   const activeOrderId = useOrderStore((s) => s.activeOrderId);
@@ -41,6 +322,10 @@ export default function OrderPickerScreen() {
   const drafts = useMemo(() => orders.filter((o) => o.status === 'draft'), [orders]);
   const activeOrder = useMemo(() => orders.find((o) => o.id === activeOrderId) ?? null, [orders, activeOrderId]);
   const activeOrderItemCount = activeOrder?._count?.items ?? 0;
+
+  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
+  const [showSetCustomerModal, setShowSetCustomerModal] = useState(false);
+  const [customerTargetOrder, setCustomerTargetOrder] = useState<Order | null>(null);
 
   const handleSelectOrder = useCallback(
     (order: Order) => {
@@ -68,6 +353,13 @@ export default function OrderPickerScreen() {
               'plain-text',
               order.name
             );
+          },
+        },
+        {
+          text: 'Set Customer',
+          onPress: () => {
+            setCustomerTargetOrder(order);
+            setShowSetCustomerModal(true);
           },
         },
         {
@@ -124,22 +416,47 @@ export default function OrderPickerScreen() {
   }, [activeOrderId, orders.length, updateOrder, createOrder, setActiveOrderId]);
 
   const handleNewOrder = useCallback(() => {
-    const nextNumber = orders.length + 1;
-    createOrder.mutate(
-      { name: `Order #${nextNumber}` },
-      {
-        onSuccess: (newOrder) => {
-          setActiveOrderId(newOrder.id);
-          router.back();
-        },
-      }
-    );
-  }, [orders.length, createOrder, setActiveOrderId]);
+    setShowNewOrderModal(true);
+  }, []);
+
+  const handleNewOrderConfirm = useCallback(
+    (name: string, customer: string) => {
+      createOrder.mutate(
+        { name, customer: customer || undefined },
+        {
+          onSuccess: (newOrder) => {
+            setActiveOrderId(newOrder.id);
+            setShowNewOrderModal(false);
+            router.back();
+          },
+        }
+      );
+    },
+    [createOrder, setActiveOrderId]
+  );
+
+  const handleSetCustomerConfirm = useCallback(
+    (customer: string) => {
+      if (!customerTargetOrder) return;
+      updateOrder.mutate(
+        { id: customerTargetOrder.id, customer: customer || null },
+        {
+          onSuccess: () => {
+            setShowSetCustomerModal(false);
+            setCustomerTargetOrder(null);
+          },
+        }
+      );
+    },
+    [customerTargetOrder, updateOrder]
+  );
 
   const handleViewHistory = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push('/order-history' as any);
   }, []);
+
+  const nextOrderNumber = orders.length + 1;
 
   const renderDraftItem = useCallback(
     ({ item }: { item: Order }) => {
@@ -170,11 +487,24 @@ export default function OrderPickerScreen() {
               numberOfLines={1}>
               {item.name}
             </Text>
+            {item.customer ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
+                <User size={11} color={COLORS.textSecondary} />
+                <Text
+                  style={{
+                    color: COLORS.textSecondary,
+                    fontSize: 13,
+                  }}
+                  numberOfLines={1}>
+                  {item.customer}
+                </Text>
+              </View>
+            ) : null}
             <Text
               style={{
                 color: COLORS.textSecondary,
                 fontSize: 13,
-                marginTop: 2,
+                marginTop: item.customer ? 2 : 2,
               }}>
               {itemCount} {itemCount === 1 ? 'item' : 'items'}
             </Text>
@@ -389,6 +719,25 @@ export default function OrderPickerScreen() {
           </View>
         )}
       </SafeAreaView>
+
+      <NewOrderModal
+        visible={showNewOrderModal}
+        defaultName={`Order #${nextOrderNumber}`}
+        onConfirm={handleNewOrderConfirm}
+        onCancel={() => setShowNewOrderModal(false)}
+        isPending={createOrder.isPending}
+      />
+
+      <SetCustomerModal
+        visible={showSetCustomerModal}
+        order={customerTargetOrder}
+        onConfirm={handleSetCustomerConfirm}
+        onCancel={() => {
+          setShowSetCustomerModal(false);
+          setCustomerTargetOrder(null);
+        }}
+        isPending={updateOrder.isPending}
+      />
     </View>
   );
 }

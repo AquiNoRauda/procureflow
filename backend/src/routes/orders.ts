@@ -24,11 +24,17 @@ ordersRouter.post("/", async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
 
-  const body = await c.req.json<{ name: string }>();
+  const body = await c.req.json<{ name: string; customer?: string }>();
   if (!body.name?.trim()) return c.json({ error: { message: "Name required", code: "VALIDATION" } }, 400);
 
   const order = await prisma.order.create({
-    data: { id: randomUUID(), name: body.name.trim(), status: "draft", userId: user.id },
+    data: {
+      id: randomUUID(),
+      name: body.name.trim(),
+      status: "draft",
+      userId: user.id,
+      ...(body.customer !== undefined ? { customer: body.customer } : {}),
+    },
     include: { _count: { select: { items: true } } },
   });
 
@@ -43,12 +49,13 @@ ordersRouter.patch("/:id", async (c) => {
   const order = await prisma.order.findFirst({ where: { id: c.req.param("id"), userId: user.id } });
   if (!order) return c.json({ error: { message: "Not found", code: "NOT_FOUND" } }, 404);
 
-  const body = await c.req.json<{ name?: string; status?: string }>();
+  const body = await c.req.json<{ name?: string; status?: string; customer?: string }>();
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: {
       ...(body.name ? { name: body.name.trim() } : {}),
       ...(body.status === "completed" ? { status: "completed", completedAt: new Date() } : {}),
+      ...(body.customer !== undefined ? { customer: body.customer } : {}),
     },
     include: { _count: { select: { items: true } } },
   });

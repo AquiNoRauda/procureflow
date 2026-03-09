@@ -70,6 +70,7 @@ model Verification {
 model Order {
   id          String         @id
   name        String
+  customer    String?
   status      String         @default("draft")
   createdAt   DateTime       @default(now())
   completedAt DateTime?

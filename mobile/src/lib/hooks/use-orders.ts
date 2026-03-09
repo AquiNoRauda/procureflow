@@ -5,6 +5,7 @@ import type { PurchaseItem } from "@/lib/hooks/use-purchases";
 export interface Order {
   id: string;
   name: string;
+  customer: string | null;
   status: "draft" | "completed";
   createdAt: string;
   completedAt: string | null;
@@ -24,7 +25,7 @@ export function useOrders() {
 export function useCreateOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string }) => api.post<Order>("/api/orders", data),
+    mutationFn: (data: { name: string; customer?: string }) => api.post<Order>("/api/orders", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ORDERS_KEY }),
   });
 }
@@ -32,7 +33,7 @@ export function useCreateOrder() {
 export function useUpdateOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; status?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; name?: string; status?: string; customer?: string | null }) =>
       api.patch<Order>(`/api/orders/${id}`, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ORDERS_KEY }),
   });

@@ -18,7 +18,7 @@ import { useOrderStore } from '@/lib/state/order-store';
 import { useOrders, useCreateOrder, Order } from '@/lib/hooks/use-orders';
 import { useCatalog } from '@/lib/hooks/use-catalog';
 import { getCatalogItemByName, getSupplierColor } from '@/lib/catalog';
-import { Plus, Minus, Trash2, Send, Package, ChevronDown } from 'lucide-react-native';
+import { Plus, Minus, Trash2, Send, Package, ChevronDown, User } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -338,11 +338,21 @@ export default function OrdersScreen() {
           className="mx-4 mb-3 flex-row items-center justify-between px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"
           activeOpacity={0.7}
         >
-          <View className="flex-row items-center gap-2">
+          <View className="flex-row items-center gap-2 flex-1">
             <View className="w-2 h-2 rounded-full bg-blue-500" />
-            <Text className="text-slate-100 font-semibold text-base">
-              {activeOrder?.name ?? 'No Order Selected'}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text className="text-slate-100 font-semibold text-base" numberOfLines={1}>
+                {activeOrder?.name ?? 'No Order Selected'}
+              </Text>
+              {activeOrder?.customer ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                  <User size={10} color="#94a3b8" />
+                  <Text style={{ color: '#94a3b8', fontSize: 12 }} numberOfLines={1}>
+                    {activeOrder.customer}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <View className="px-2 py-0.5 rounded-full bg-blue-500/20">
               <Text className="text-blue-400 text-xs font-medium">
                 {activeOrder?.status === 'draft' ? 'Draft' : activeOrder?.status ?? ''}

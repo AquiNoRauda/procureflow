@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { X, ChevronRight, Clock, PackageOpen, Trash2 } from 'lucide-react-native';
+import { X, ChevronRight, Clock, PackageOpen, Trash2, User } from 'lucide-react-native';
 import { useOrders, useDeleteOrder } from '@/lib/hooks/use-orders';
 import type { Order } from '@/lib/hooks/use-orders';
 
@@ -65,7 +65,7 @@ export default function OrderHistoryScreen() {
 
   const handleOrderPress = (order: Order) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    router.push({ pathname: '/order-detail' as any, params: { id: order.id, name: order.name } });
+    router.push({ pathname: '/order-detail' as any, params: { id: order.id, name: order.name, customer: order.customer ?? '' } });
   };
 
   const renderItem = ({ item }: { item: Order }) => {
@@ -94,6 +94,16 @@ export default function OrderHistoryScreen() {
             numberOfLines={1}>
             {item.name}
           </Text>
+          {item.customer ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 }}>
+              <User size={11} color={COLORS.textSecondary} />
+              <Text
+                style={{ color: COLORS.textSecondary, fontSize: 13 }}
+                numberOfLines={1}>
+                {item.customer}
+              </Text>
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Clock size={12} color={COLORS.textSecondary} />

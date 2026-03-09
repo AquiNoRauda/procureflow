@@ -35,7 +35,8 @@ const COLORS = {
 };
 
 export default function OrderDetailScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, customer } = useLocalSearchParams<{ id: string; name: string; customer: string }>();
+  const customerName = customer && customer.length > 0 ? customer : null;
   const [exporting, setExporting] = useState(false);
 
   const { data: items = [], isLoading } = useOrderItems(id ?? null);
@@ -69,7 +70,7 @@ export default function OrderDetailScreen() {
     setExportingSupplier(supplier);
     try {
       const accentColor = supplierColorMap[supplier];
-      await exportSupplierPDF(supplier, supplierItems, accentColor);
+      await exportSupplierPDF(supplier, supplierItems, accentColor, customerName ?? undefined);
     } catch {
       Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
     } finally {
@@ -81,7 +82,7 @@ export default function OrderDetailScreen() {
     if (items.length === 0) return;
     setExporting(true);
     try {
-      await exportOrderPDF(items);
+      await exportOrderPDF(items, customerName ?? undefined);
     } catch {
       Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
     } finally {
