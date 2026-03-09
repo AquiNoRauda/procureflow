@@ -12,10 +12,44 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
 import usePurchasingStore, { PurchaseItem } from '@/lib/state/purchasing-store';
-import { searchCatalog, getCatalogEntry, SUPPLIER_COLORS, CatalogEntry } from '@/lib/catalog';
-import { Plus, Minus, Trash2, Search, Package } from 'lucide-react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated';
+import { getCatalogEntry, SUPPLIER_COLORS } from '@/lib/catalog';
+import { Plus, Minus, Trash2, Send, Package } from 'lucide-react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+
+// Parse a bulk entry string like "tomatoes-5, chicken breast-3, eggs-12"
+// Supports separators: comma, semicolon, newline
+// Each token: "item name-qty" or "item name qty"
+function parseBulkInput(text: string): Array<{ name: string; qty: number }> {
+  const tokens = text.split(/[,;\n]+/).map((t) => t.trim()).filter(Boolean);
+  const results: Array<{ name: string; qty: number }> = [];
+  for (const token of tokens) {
+    // Try "name-qty" pattern first (e.g. "tomatoes-5")
+    const dashMatch = token.match(/^(.+?)-(\d+)$/);
+    if (dashMatch) {
+      const name = dashMatch[1].trim();
+      const qty = parseInt(dashMatch[2], 10);
+      if (name && qty > 0) results.push({ name, qty });
+      continue;
+    }
+    // Try "name qty" pattern (e.g. "tomatoes 5")
+    const spaceMatch = token.match(/^(.+?)\s+(\d+)$/);
+    if (spaceMatch) {
+      const name = spaceMatch[1].trim();
+      const qty = parseInt(spaceMatch[2], 10);
+      if (name && qty > 0) results.push({ name, qty });
+      continue;
+    }
+    // Try "qty name" pattern (e.g. "5 tomatoes")
+    const reverseMatch = token.match(/^(\d+)\s+(.+)$/);
+    if (reverseMatch) {
+      const qty = parseInt(reverseMatch[1], 10);
+      const name = reverseMatch[2].trim();
+      if (name && qty > 0) results.push({ name, qty });
+    }
+  }
+  return results;
+}
 
 export default function OrdersScreen() {
   const colorScheme = useColorScheme();
@@ -27,59 +61,47 @@ export default function OrdersScreen() {
   const removeItem = usePurchasingStore((s) => s.removeItem);
   const clearAll = usePurchasingStore((s) => s.clearAll);
 
-  const [itemText, setItemText] = useState('');
-  const [qtyText, setQtyText] = useState('');
-  const [suggestions, setSuggestions] = useState<CatalogEntry[]>([]);
-  const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  const qtyRef = useRef<TextInput>(null);
-  const itemRef = useRef<TextInput>(null);
-
-  const handleItemChange = useCallback((text: string) => {
-    setItemText(text);
-    setSelectedEntry(null);
-    if (text.length >= 1) {
-      const results = searchCatalog(text);
-      setSuggestions(results);
-      setShowSuggestions(results.length > 0);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, []);
-
-  const handleSelectSuggestion = useCallback((entry: CatalogEntry) => {
-    setItemText(entry.item);
-    setSelectedEntry(entry);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    qtyRef.current?.focus();
-  }, []);
+  const [bulkText, setBulkText] = useState('');
+  const inputRef = useRef<TextInput>(null);
 
   const handleSubmit = useCallback(() => {
-    const entry = selectedEntry || getCatalogEntry(itemText);
-    if (!entry) {
-      Alert.alert('Item not found', 'Please select an item from the suggestions.');
-      return;
-    }
-    const qty = parseInt(qtyText, 10);
-    if (!qty || qty <= 0) {
-      Alert.alert('Invalid quantity', 'Please enter a valid quantity.');
+    if (!bulkText.trim()) return;
+
+    const parsed = parseBulkInput(bulkText);
+    if (parsed.length === 0) {
+      Alert.alert(
+        'Could not parse input',
+        'Use format: tomatoes-5, chicken-3\nOr separate items with commas.'
+      );
       return;
     }
 
-    addItem(entry.item, entry.supplier, qty, entry.unit);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const notFound: string[] = [];
+    let addedCount = 0;
 
-    setItemText('');
-    setQtyText('');
-    setSelectedEntry(null);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    itemRef.current?.focus();
-  }, [itemText, qtyText, selectedEntry, addItem]);
+    for (const { name, qty } of parsed) {
+      const entry = getCatalogEntry(name);
+      if (!entry) {
+        notFound.push(name);
+        continue;
+      }
+      addItem(entry.item, entry.supplier, qty, entry.unit);
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setBulkText('');
+      inputRef.current?.focus();
+    }
+
+    if (notFound.length > 0) {
+      Alert.alert(
+        `${notFound.length} item${notFound.length > 1 ? 's' : ''} not found`,
+        `Not in catalog: ${notFound.join(', ')}\n\nCheck spelling or add them to the catalog.`
+      );
+    }
+  }, [bulkText, addItem]);
 
   const handleClearAll = useCallback(() => {
     Alert.alert('Clear All Orders', 'Are you sure you want to clear all items?', [
@@ -132,13 +154,9 @@ export default function OrdersScreen() {
       cardBorder: isDark ? '#334155' : '#E2E8F0',
       text: isDark ? '#F1F5F9' : '#0F172A',
       textSecondary: isDark ? '#94A3B8' : '#64748B',
-      inputBg: isDark ? '#1E293B' : '#FFFFFF',
-      inputBorder: isDark ? '#475569' : '#CBD5E1',
       accent: '#2563EB',
       accentLight: isDark ? '#1E3A5F' : '#DBEAFE',
       danger: '#EF4444',
-      suggestionBg: isDark ? '#1E293B' : '#FFFFFF',
-      suggestionBorder: isDark ? '#334155' : '#E2E8F0',
     }),
     [isDark]
   );
@@ -272,7 +290,7 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-        {/* Quick Insert Bar */}
+        {/* Bulk Insert Bar */}
         <View
           style={{
             marginHorizontal: 16,
@@ -281,156 +299,47 @@ export default function OrdersScreen() {
             borderRadius: 16,
             borderWidth: 1,
             borderColor: colors.cardBorder,
-            overflow: 'visible',
-            zIndex: 100,
           }}>
-          <View className="flex-row items-center p-3">
-            <Search size={18} color={colors.textSecondary} />
-            <TextInput
-              ref={itemRef}
-              value={itemText}
-              onChangeText={handleItemChange}
-              placeholder="Type item name..."
-              placeholderTextColor={colors.textSecondary}
-              style={{
-                flex: 1,
-                marginLeft: 8,
-                fontSize: 16,
-                color: colors.text,
-                paddingVertical: Platform.OS === 'ios' ? 4 : 2,
-              }}
-              returnKeyType="next"
-              onSubmitEditing={() => qtyRef.current?.focus()}
-              autoCorrect={false}
-            />
-            {selectedEntry != null && (
-              <View
+          <View style={{ padding: 10 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 }}>
+              QUICK INSERT — e.g. tomatoes-5, chicken-3, eggs-12
+            </Text>
+            <View className="flex-row items-center" style={{ gap: 8 }}>
+              <TextInput
+                ref={inputRef}
+                value={bulkText}
+                onChangeText={setBulkText}
+                placeholder="tomatoes-5, chicken-3, eggs-12"
+                placeholderTextColor={colors.textSecondary}
                 style={{
-                  backgroundColor:
-                    SUPPLIER_COLORS[selectedEntry.supplier]?.bg || '#F3F4F6',
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 6,
-                  marginRight: 8,
+                  flex: 1,
+                  fontSize: 15,
+                  color: colors.text,
+                  backgroundColor: isDark ? '#334155' : '#F1F5F9',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+                }}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                autoCorrect={false}
+                autoCapitalize="none"
+                multiline={false}
+              />
+              <TouchableOpacity
+                onPress={handleSubmit}
+                style={{
+                  backgroundColor: bulkText.trim() ? colors.accent : (isDark ? '#334155' : '#E2E8F0'),
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}>
-                <Text
-                  style={{
-                    color:
-                      SUPPLIER_COLORS[selectedEntry.supplier]?.text || '#374151',
-                    fontSize: 10,
-                    fontWeight: '700',
-                  }}>
-                  {selectedEntry.supplier}
-                </Text>
-              </View>
-            )}
-            <TextInput
-              ref={qtyRef}
-              value={qtyText}
-              onChangeText={setQtyText}
-              placeholder="Qty"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="number-pad"
-              style={{
-                width: 52,
-                fontSize: 16,
-                fontWeight: '700',
-                color: colors.text,
-                textAlign: 'center',
-                backgroundColor: isDark ? '#334155' : '#F1F5F9',
-                borderRadius: 10,
-                paddingVertical: Platform.OS === 'ios' ? 6 : 4,
-                marginRight: 8,
-              }}
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
-            <TouchableOpacity
-              onPress={handleSubmit}
-              style={{
-                backgroundColor: colors.accent,
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <Plus size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+                <Send size={20} color={bulkText.trim() ? '#FFFFFF' : colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {/* Suggestions dropdown */}
-          {showSuggestions === true && (
-            <Animated.View
-              entering={SlideInDown.duration(150)}
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                backgroundColor: colors.suggestionBg,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: colors.suggestionBorder,
-                marginTop: 4,
-                maxHeight: 240,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: isDark ? 0.4 : 0.12,
-                shadowRadius: 12,
-                elevation: 8,
-                zIndex: 200,
-              }}>
-              {suggestions.map((entry, idx) => {
-                const supplierColor = SUPPLIER_COLORS[entry.supplier] || {
-                  bg: '#F3F4F6',
-                  text: '#374151',
-                  accent: '#6B7280',
-                };
-                return (
-                  <TouchableOpacity
-                    key={`${entry.item}-${entry.supplier}`}
-                    onPress={() => handleSelectSuggestion(entry)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                      borderBottomWidth: idx < suggestions.length - 1 ? 1 : 0,
-                      borderBottomColor: colors.cardBorder,
-                    }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: '500' }}>
-                        {entry.item}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        backgroundColor: supplierColor.bg,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 6,
-                        marginLeft: 8,
-                      }}>
-                      <Text style={{ color: supplierColor.text, fontSize: 11, fontWeight: '600' }}>
-                        {entry.supplier}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        minWidth: 30,
-                        textAlign: 'right',
-                      }}>
-                      {entry.unit}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </Animated.View>
-          )}
         </View>
 
         {/* Items List */}
@@ -465,8 +374,7 @@ export default function OrdersScreen() {
                 marginTop: 6,
                 lineHeight: 20,
               }}>
-              Type an item name above and the supplier fills automatically. Add a quantity and hit
-              the + button.
+              Type items above using format: tomatoes-5, chicken-3{'\n'}Supplier fills automatically.
             </Text>
           </View>
         ) : (
@@ -477,10 +385,7 @@ export default function OrdersScreen() {
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            onScrollBeginDrag={() => {
-              Keyboard.dismiss();
-              setShowSuggestions(false);
-            }}
+            onScrollBeginDrag={Keyboard.dismiss}
           />
         )}
       </SafeAreaView>
