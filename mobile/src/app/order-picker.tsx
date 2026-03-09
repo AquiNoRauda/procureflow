@@ -285,7 +285,7 @@ export default function OrderPickerScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <>
+          <View style={{ flex: 1 }}>
             {/* Draft Orders section */}
             <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
               <Text
@@ -305,14 +305,15 @@ export default function OrderPickerScreen() {
               data={drafts}
               renderItem={renderDraftItem}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}
               showsVerticalScrollIndicator={false}
               testID="drafts-list"
+              style={{ flex: 1 }}
             />
-          </>
+          </View>
         )}
 
-        {/* Footer actions */}
+        {/* Footer actions — always visible */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 16, gap: 10 }}>
           {activeOrderItemCount > 0 && (
             <TouchableOpacity
