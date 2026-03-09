@@ -12,7 +12,6 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { X, Check, Plus, History, Package, User } from 'lucide-react-native';
 import { useOrders, useCreateOrder, useUpdateOrder, useDeleteOrder } from '@/lib/hooks/use-orders';
@@ -530,7 +529,6 @@ export default function OrderPickerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }} testID="order-picker-screen">
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         {/* Header */}
         <View
           style={{
@@ -718,8 +716,6 @@ export default function OrderPickerScreen() {
             />
           </View>
         )}
-      </SafeAreaView>
-
       <NewOrderModal
         visible={showNewOrderModal}
         defaultName={`Order #${nextOrderNumber}`}
