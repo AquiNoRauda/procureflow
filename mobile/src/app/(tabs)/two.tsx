@@ -1,18 +1,20 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
   View,
   Text,
   SectionList,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
 import usePurchasingStore, { PurchaseItem } from '@/lib/state/purchasing-store';
 import { SUPPLIER_COLORS } from '@/lib/catalog';
-import { Minus, Plus, Trash2, Truck, PackageOpen } from 'lucide-react-native';
+import { Minus, Plus, Trash2, Truck, PackageOpen, FileDown } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { exportOrderPDF } from '@/lib/pdf-export';
 
 interface SupplierSection {
   title: string;
@@ -29,6 +31,20 @@ export default function SupplierScreen() {
   const updateQuantity = usePurchasingStore((s) => s.updateQuantity);
   const removeItem = usePurchasingStore((s) => s.removeItem);
   const clearSupplier = usePurchasingStore((s) => s.clearSupplier);
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    if (items.length === 0) return;
+    setExporting(true);
+    try {
+      await exportOrderPDF(items);
+    } catch (e) {
+      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }, [items]);
 
   const sections: SupplierSection[] = useMemo(() => {
     const grouped: Record<string, PurchaseItem[]> = {};
@@ -250,13 +266,41 @@ export default function SupplierScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
-        <View className="px-5 pt-2 pb-1">
-          <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>
-            By Supplier
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
-            {sections.length} {sections.length === 1 ? 'supplier' : 'suppliers'} with orders
-          </Text>
+        <View className="px-5 pt-2 pb-3">
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>
+                By Supplier
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                {sections.length} {sections.length === 1 ? 'supplier' : 'suppliers'} with orders
+              </Text>
+            </View>
+            {sections.length > 0 && (
+              <TouchableOpacity
+                onPress={handleExport}
+                disabled={exporting}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  borderRadius: 12,
+                  backgroundColor: colors.accent,
+                  opacity: exporting ? 0.6 : 1,
+                }}>
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <FileDown size={16} color="#ffffff" />
+                )}
+                <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>
+                  {exporting ? 'Exporting…' : 'Export PDF'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {sections.length === 0 ? (
