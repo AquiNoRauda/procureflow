@@ -1,0 +1,310 @@
+import React, { useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  SectionList,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useColorScheme } from '@/lib/useColorScheme';
+import usePurchasingStore, { PurchaseItem } from '@/lib/state/purchasing-store';
+import { SUPPLIER_COLORS } from '@/lib/catalog';
+import { Minus, Plus, Trash2, Truck, PackageOpen } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+
+interface SupplierSection {
+  title: string;
+  totalQty: number;
+  itemCount: number;
+  data: PurchaseItem[];
+}
+
+export default function SupplierScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const items = usePurchasingStore((s) => s.items);
+  const updateQuantity = usePurchasingStore((s) => s.updateQuantity);
+  const removeItem = usePurchasingStore((s) => s.removeItem);
+  const clearSupplier = usePurchasingStore((s) => s.clearSupplier);
+
+  const sections: SupplierSection[] = useMemo(() => {
+    const grouped: Record<string, PurchaseItem[]> = {};
+    for (const item of items) {
+      if (!grouped[item.supplier]) grouped[item.supplier] = [];
+      grouped[item.supplier].push(item);
+    }
+    return Object.entries(grouped)
+      .map(([supplier, supplierItems]) => ({
+        title: supplier,
+        totalQty: supplierItems.reduce((sum, i) => sum + i.quantity, 0),
+        itemCount: supplierItems.length,
+        data: supplierItems,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [items]);
+
+  const colors = useMemo(
+    () => ({
+      bg: isDark ? '#0F172A' : '#F8FAFC',
+      card: isDark ? '#1E293B' : '#FFFFFF',
+      cardBorder: isDark ? '#334155' : '#E2E8F0',
+      text: isDark ? '#F1F5F9' : '#0F172A',
+      textSecondary: isDark ? '#94A3B8' : '#64748B',
+      accent: '#2563EB',
+      accentLight: isDark ? '#1E3A5F' : '#DBEAFE',
+      danger: '#EF4444',
+      sectionBg: isDark ? '#0F172A' : '#F8FAFC',
+    }),
+    [isDark]
+  );
+
+  const handleIncrease = useCallback(
+    (item: PurchaseItem) => {
+      updateQuantity(item.id, item.quantity + 1);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [updateQuantity]
+  );
+
+  const handleDecrease = useCallback(
+    (item: PurchaseItem) => {
+      if (item.quantity <= 1) {
+        removeItem(item.id);
+      } else {
+        updateQuantity(item.id, item.quantity - 1);
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [updateQuantity, removeItem]
+  );
+
+  const handleClearSupplier = useCallback(
+    (supplier: string) => {
+      Alert.alert(
+        `Clear ${supplier}`,
+        `Remove all items from ${supplier}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Clear',
+            style: 'destructive',
+            onPress: () => {
+              clearSupplier(supplier);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            },
+          },
+        ]
+      );
+    },
+    [clearSupplier]
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SupplierSection }) => {
+      const supplierColor = SUPPLIER_COLORS[section.title] || {
+        bg: '#F3F4F6',
+        text: '#374151',
+        accent: '#6B7280',
+      };
+
+      return (
+        <View
+          style={{
+            backgroundColor: colors.sectionBg,
+            paddingTop: 16,
+            paddingBottom: 8,
+            paddingHorizontal: 16,
+          }}>
+          <View
+            style={{
+              backgroundColor: supplierColor.bg,
+              borderRadius: 14,
+              padding: 14,
+              borderLeftWidth: 4,
+              borderLeftColor: supplierColor.accent,
+            }}>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <Truck size={20} color={supplierColor.accent} />
+                <Text
+                  style={{
+                    color: supplierColor.text,
+                    fontSize: 17,
+                    fontWeight: '700',
+                    marginLeft: 10,
+                  }}>
+                  {section.title}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => handleClearSupplier(section.title)}>
+                <Trash2 size={16} color={supplierColor.text} />
+              </TouchableOpacity>
+            </View>
+            <View className="flex-row items-center mt-2" style={{ gap: 12 }}>
+              <View
+                style={{
+                  backgroundColor: supplierColor.accent + '20',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                }}>
+                <Text style={{ color: supplierColor.text, fontSize: 13, fontWeight: '600' }}>
+                  {section.itemCount} {section.itemCount === 1 ? 'item' : 'items'}
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: supplierColor.accent + '20',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                }}>
+                <Text style={{ color: supplierColor.text, fontSize: 13, fontWeight: '600' }}>
+                  {section.totalQty} total qty
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    },
+    [colors, handleClearSupplier]
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: PurchaseItem }) => {
+      return (
+        <Animated.View entering={FadeIn.duration(200)}>
+          <View
+            style={{
+              marginHorizontal: 16,
+              backgroundColor: colors.card,
+              borderRadius: 12,
+              padding: 12,
+              marginTop: 6,
+              borderWidth: 1,
+              borderColor: colors.cardBorder,
+            }}>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 mr-3">
+                <Text
+                  style={{ color: colors.text, fontSize: 15, fontWeight: '500' }}
+                  numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                  {item.unit}
+                </Text>
+              </View>
+
+              <View className="flex-row items-center">
+                <TouchableOpacity
+                  onPress={() => handleDecrease(item)}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    backgroundColor: colors.accentLight,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Minus size={14} color={colors.accent} />
+                </TouchableOpacity>
+
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontSize: 17,
+                    fontWeight: '700',
+                    minWidth: 36,
+                    textAlign: 'center',
+                  }}>
+                  {item.quantity}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => handleIncrease(item)}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    backgroundColor: colors.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Plus size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+      );
+    },
+    [colors, handleDecrease, handleIncrease]
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View className="px-5 pt-2 pb-1">
+          <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>
+            By Supplier
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+            {sections.length} {sections.length === 1 ? 'supplier' : 'suppliers'} with orders
+          </Text>
+        </View>
+
+        {sections.length === 0 ? (
+          <View className="flex-1 items-center justify-center px-10">
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 20,
+                backgroundColor: colors.accentLight,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}>
+              <PackageOpen size={36} color={colors.accent} />
+            </View>
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: 18,
+                fontWeight: '700',
+                textAlign: 'center',
+              }}>
+              No orders yet
+            </Text>
+            <Text
+              style={{
+                color: colors.textSecondary,
+                fontSize: 14,
+                textAlign: 'center',
+                marginTop: 6,
+                lineHeight: 20,
+              }}>
+              Add items from the Orders tab and they will automatically group here by supplier.
+            </Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            renderSectionHeader={renderSectionHeader}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
+          />
+        )}
+      </SafeAreaView>
+    </View>
+  );
+}
