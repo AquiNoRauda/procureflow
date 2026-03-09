@@ -65,6 +65,14 @@ export default function OrdersScreen() {
 
   const { data: catalogData } = useCatalog();
   const catalogItems = catalogData?.items ?? [];
+  const suppliers = catalogData?.suppliers ?? [];
+
+  // Build color lookup map keyed by supplier name
+  const supplierColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    suppliers.forEach(s => { map[s.name] = s.color; });
+    return map;
+  }, [suppliers]);
 
   const [bulkText, setBulkText] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -168,7 +176,7 @@ export default function OrdersScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: PurchaseItem }) => {
-      const supplierColor = getSupplierColor(item.supplier);
+      const supplierColor = getSupplierColor(item.supplier, supplierColorMap[item.supplier]);
 
       return (
         <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
@@ -257,7 +265,7 @@ export default function OrdersScreen() {
         </Animated.View>
       );
     },
-    [colors, handleDecrease, handleIncrease, handleDelete]
+    [colors, handleDecrease, handleIncrease, handleDelete, supplierColorMap]
   );
 
   return (

@@ -17,9 +17,20 @@ export function getSupplierColor(
   supplierName: string,
   accentHex?: string
 ): { bg: string; text: string; accent: string } {
+  // Check static map first (legacy fallback)
   if (SUPPLIER_COLORS[supplierName]) return SUPPLIER_COLORS[supplierName];
-  const accent = accentHex ?? "#2563EB";
-  return { bg: accent + "22", text: accent, accent };
+
+  // If a real color was provided from DB, use it
+  if (accentHex) {
+    return {
+      bg: accentHex + '20',  // 12% opacity version of the color (hex alpha)
+      text: accentHex,
+      accent: accentHex,
+    };
+  }
+
+  // Ultimate fallback
+  return { bg: '#EFF6FF', text: '#2563EB', accent: '#2563EB' };
 }
 
 // Fuzzy search catalog items (pass store items directly).

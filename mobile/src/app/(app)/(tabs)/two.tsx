@@ -11,7 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { usePurchases, useUpdatePurchaseQty, useRemovePurchaseItem, useClearSupplierPurchases } from '@/lib/hooks/use-purchases';
 import { PurchaseItem } from '@/lib/hooks/use-purchases';
-import { SUPPLIER_COLORS } from '@/lib/catalog';
+import { useCatalog } from '@/lib/hooks/use-catalog';
+import { getSupplierColor } from '@/lib/catalog';
 import { Minus, Plus, Truck, PackageOpen, FileDown } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -32,6 +33,14 @@ export default function SupplierScreen() {
   const updatePurchaseQty = useUpdatePurchaseQty();
   const removePurchaseItem = useRemovePurchaseItem();
   const clearSupplierPurchases = useClearSupplierPurchases();
+
+  const { data: catalogData } = useCatalog();
+  const suppliers = catalogData?.suppliers ?? [];
+  const supplierColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    suppliers.forEach(s => { map[s.name] = s.color; });
+    return map;
+  }, [suppliers]);
 
   const [exporting, setExporting] = useState(false);
 
@@ -121,11 +130,7 @@ export default function SupplierScreen() {
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SupplierSection }) => {
-      const supplierColor = SUPPLIER_COLORS[section.title] || {
-        bg: '#F3F4F6',
-        text: '#374151',
-        accent: '#6B7280',
-      };
+      const supplierColor = getSupplierColor(section.title, supplierColorMap[section.title]);
 
       return (
         <View
@@ -188,7 +193,7 @@ export default function SupplierScreen() {
         </View>
       );
     },
-    [colors, handleClearSupplier]
+    [colors, handleClearSupplier, supplierColorMap]
   );
 
   const renderItem = useCallback(
