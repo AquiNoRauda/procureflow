@@ -711,8 +711,8 @@ export default function OrderPickerScreen() {
               data={drafts}
               renderItem={renderDraftItem}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
-              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+              showsVerticalScrollIndicator={true}
               testID="drafts-list"
               style={{ flex: 1 }}
             />
