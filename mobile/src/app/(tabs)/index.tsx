@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
 import usePurchasingStore, { PurchaseItem } from '@/lib/state/purchasing-store';
-import { getCatalogEntry, SUPPLIER_COLORS } from '@/lib/catalog';
+import useCatalogStore from '@/lib/state/catalog-store';
+import { getCatalogItemByName, SUPPLIER_COLORS, getSupplierColor } from '@/lib/catalog';
 import { Plus, Minus, Trash2, Send, Package } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -61,6 +62,9 @@ export default function OrdersScreen() {
   const removeItem = usePurchasingStore((s) => s.removeItem);
   const clearAll = usePurchasingStore((s) => s.clearAll);
 
+  const catalogItems = useCatalogStore((s) => s.items);
+  const catalogSuppliers = useCatalogStore((s) => s.suppliers);
+
   const [bulkText, setBulkText] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -80,12 +84,12 @@ export default function OrdersScreen() {
     let addedCount = 0;
 
     for (const { name, qty } of parsed) {
-      const entry = getCatalogEntry(name);
+      const entry = getCatalogItemByName(name, catalogItems);
       if (!entry) {
         notFound.push(name);
         continue;
       }
-      addItem(entry.item, entry.supplier, qty, entry.unit);
+      addItem(entry.name, entry.supplierName, qty, entry.unit);
       addedCount++;
     }
 
