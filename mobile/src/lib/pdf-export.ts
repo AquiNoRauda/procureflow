@@ -102,7 +102,6 @@ export async function exportSupplierPDF(
   supplier: string,
   items: PurchaseItem[],
   accentColor?: string,
-  customer?: string,
 ): Promise<void> {
   if (items.length === 0) return;
 
@@ -140,7 +139,6 @@ export async function exportSupplierPDF(
       <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-0.5px;">Purchase Order</div>
       <div style="font-size:18px;font-weight:600;color:${accent};margin-top:6px;">${supplier}</div>
       <div style="font-size:13px;color:#6b7280;margin-top:4px;">${orderDate}</div>
-      ${customer ? `<div style="font-size:15px;font-weight:600;color:#111827;margin-top:6px;">For: ${customer}</div>` : ''}
     </div>
     <div style="text-align:right;">
       <div style="font-size:13px;color:#6b7280;">${items.length} item${items.length !== 1 ? 's' : ''}</div>

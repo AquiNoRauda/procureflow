@@ -70,7 +70,7 @@ export default function OrderDetailScreen() {
     setExportingSupplier(supplier);
     try {
       const accentColor = supplierColorMap[supplier];
-      await exportSupplierPDF(supplier, supplierItems, accentColor, customerName ?? undefined);
+      await exportSupplierPDF(supplier, supplierItems, accentColor);
     } catch {
       Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
     } finally {
