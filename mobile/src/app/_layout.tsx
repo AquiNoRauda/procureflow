@@ -35,7 +35,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           options={{
             presentation: 'formSheet',
             sheetGrabberVisible: true,
-            sheetAllowedDetents: [0.75],
+            sheetAllowedDetents: [0.5],
             headerShown: false,
           }}
         />

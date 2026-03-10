@@ -460,7 +460,7 @@ export default function OrderPickerScreen() {
   const nextOrderNumber = orders.length + 1;
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }} testID="order-picker-screen">
+    <View style={{ flex: 1, backgroundColor: COLORS.bg, overflow: 'hidden' }} testID="order-picker-screen">
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
@@ -543,7 +543,7 @@ export default function OrderPickerScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={{ maxHeight: screenHeight * 0.5 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={true} testID="drafts-list">
+        <ScrollView style={{ height: screenHeight * 0.5 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={true} testID="drafts-list">
           <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
             Draft Orders
           </Text>
