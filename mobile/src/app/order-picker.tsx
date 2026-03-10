@@ -609,92 +609,92 @@ export default function OrderPickerScreen() {
           </View>
         </View>
 
-        {isLoading ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color={COLORS.accent} testID="loading-indicator" />
-          </View>
-        ) : drafts.length === 0 ? (
-          /* Empty state */
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 20,
-                backgroundColor: COLORS.accentLight,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}>
-              <Package size={36} color={COLORS.accent} />
+        {/* Scrollable middle — fills space between buttons and footer */}
+        <View style={{ flex: 1 }}>
+          {isLoading ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={COLORS.accent} testID="loading-indicator" />
             </View>
-            <Text
-              style={{
-                color: COLORS.text,
-                fontSize: 18,
-                fontWeight: '700',
-                textAlign: 'center',
-              }}>
-              No orders yet
-            </Text>
-            <Text
-              style={{
-                color: COLORS.textSecondary,
-                fontSize: 14,
-                textAlign: 'center',
-                marginTop: 6,
-                lineHeight: 20,
-              }}>
-              Create your first order to start adding items.
-            </Text>
-            <TouchableOpacity
-              onPress={handleNewOrder}
-              testID="create-first-order-button"
-              style={{
-                marginTop: 24,
-                backgroundColor: COLORS.accent,
-                borderRadius: 14,
-                paddingHorizontal: 28,
-                paddingVertical: 14,
-              }}>
-              {createOrder.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
-                  Create First Order
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {/* Draft list */}
-        {!isLoading && drafts.length > 0 && (
-          <View style={{ flex: 1, minHeight: 0 }}>
-            <View style={{ paddingHorizontal: 20, marginBottom: 8, flexShrink: 0 }}>
+          ) : drafts.length === 0 ? (
+            /* Empty state */
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+              <View
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 20,
+                  backgroundColor: COLORS.accentLight,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 16,
+                }}>
+                <Package size={36} color={COLORS.accent} />
+              </View>
+              <Text
+                style={{
+                  color: COLORS.text,
+                  fontSize: 18,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}>
+                No orders yet
+              </Text>
               <Text
                 style={{
                   color: COLORS.textSecondary,
-                  fontSize: 11,
-                  fontWeight: '700',
-                  letterSpacing: 1,
-                  textTransform: 'uppercase',
-                  marginBottom: 10,
+                  fontSize: 14,
+                  textAlign: 'center',
+                  marginTop: 6,
+                  lineHeight: 20,
                 }}>
-                Draft Orders
+                Create your first order to start adding items.
               </Text>
+              <TouchableOpacity
+                onPress={handleNewOrder}
+                testID="create-first-order-button"
+                style={{
+                  marginTop: 24,
+                  backgroundColor: COLORS.accent,
+                  borderRadius: 14,
+                  paddingHorizontal: 28,
+                  paddingVertical: 14,
+                }}>
+                {createOrder.isPending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
+                    Create First Order
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
-            <FlatList
-              data={drafts}
-              renderItem={renderDraftItem}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
-              showsVerticalScrollIndicator={true}
-              testID="drafts-list"
-              style={{ flex: 1 }}
-            />
-          </View>
-        )}
+          ) : (
+            /* Draft list */
+            <>
+              <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
+                <Text
+                  style={{
+                    color: COLORS.textSecondary,
+                    fontSize: 11,
+                    fontWeight: '700',
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    marginBottom: 10,
+                  }}>
+                  Draft Orders
+                </Text>
+              </View>
+              <FlatList
+                data={drafts}
+                renderItem={renderDraftItem}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
+                showsVerticalScrollIndicator={true}
+                testID="drafts-list"
+              />
+            </>
+          )}
+        </View>
 
         {/* Complete Current Order — sticky footer */}
         {activeOrderItemCount > 0 && (
