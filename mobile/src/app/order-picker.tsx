@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { X, Check, Plus, History, Package, User } from 'lucide-react-native';
@@ -310,6 +311,7 @@ function SetCustomerModal({ visible, order, onConfirm, onCancel, isPending }: Se
 }
 
 export default function OrderPickerScreen() {
+  const { height: screenHeight } = useWindowDimensions();
   const activeOrderId = useOrderStore((s) => s.activeOrderId);
   const setActiveOrderId = useOrderStore((s) => s.setActiveOrderId);
 
@@ -515,13 +517,13 @@ export default function OrderPickerScreen() {
         </View>
       )}
 
-      {/* Draft list / loading / empty */}
+      {/* Draft list / loading / empty — capped at 50% of screen height */}
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ height: 120, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={COLORS.accent} testID="loading-indicator" />
         </View>
       ) : drafts.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+        <View style={{ height: 200, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: COLORS.accentLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
             <Package size={36} color={COLORS.accent} />
           </View>
@@ -541,7 +543,7 @@ export default function OrderPickerScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={true} testID="drafts-list">
+        <ScrollView style={{ maxHeight: screenHeight * 0.5 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={true} testID="drafts-list">
           <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
             Draft Orders
           </Text>
