@@ -557,28 +557,6 @@ export default function OrderPickerScreen() {
 
         {/* Top actions — always visible */}
         <View style={{ paddingHorizontal: 20, gap: 10, marginBottom: 16 }}>
-          {activeOrderItemCount > 0 && (
-            <TouchableOpacity
-              onPress={handleCompleteOrder}
-              disabled={updateOrder.isPending || createOrder.isPending}
-              testID="complete-order-button"
-              style={{
-                backgroundColor: COLORS.accent,
-                borderRadius: 14,
-                paddingVertical: 16,
-                alignItems: 'center',
-                opacity: updateOrder.isPending || createOrder.isPending ? 0.6 : 1,
-              }}>
-              {updateOrder.isPending || createOrder.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
-                  Complete Current Order
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity
               onPress={handleNewOrder}
@@ -716,6 +694,39 @@ export default function OrderPickerScreen() {
             />
           </View>
         )}
+
+        {/* Complete Current Order — sticky footer */}
+        {activeOrderItemCount > 0 && (
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingBottom: 32,
+              paddingTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: COLORS.cardBorder,
+            }}>
+            <TouchableOpacity
+              onPress={handleCompleteOrder}
+              disabled={updateOrder.isPending || createOrder.isPending}
+              testID="complete-order-button"
+              style={{
+                backgroundColor: COLORS.accent,
+                borderRadius: 14,
+                paddingVertical: 16,
+                alignItems: 'center',
+                opacity: updateOrder.isPending || createOrder.isPending ? 0.6 : 1,
+              }}>
+              {updateOrder.isPending || createOrder.isPending ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
+                  Complete Current Order
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
       <NewOrderModal
         visible={showNewOrderModal}
         defaultName={`Order #${nextOrderNumber}`}
