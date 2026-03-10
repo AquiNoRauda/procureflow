@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   Alert,
   ActivityIndicator,
   Modal,
@@ -457,277 +457,124 @@ export default function OrderPickerScreen() {
 
   const nextOrderNumber = orders.length + 1;
 
-  const renderDraftItem = useCallback(
-    ({ item }: { item: Order }) => {
-      const isActive = item.id === activeOrderId;
-      const itemCount = item._count?.items ?? 0;
-      return (
-        <TouchableOpacity
-          onPress={() => handleSelectOrder(item)}
-          onLongPress={() => handleLongPress(item)}
-          testID={`draft-order-${item.id}`}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: isActive ? COLORS.accentLight : COLORS.card,
-            borderRadius: 14,
-            padding: 16,
-            marginBottom: 8,
-            borderWidth: 1,
-            borderColor: isActive ? COLORS.accent : COLORS.cardBorder,
-          }}>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                color: COLORS.text,
-                fontSize: 16,
-                fontWeight: isActive ? '700' : '500',
-              }}
-              numberOfLines={1}>
-              {item.name}
-            </Text>
-            {item.customer ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
-                <User size={11} color={COLORS.textSecondary} />
-                <Text
-                  style={{
-                    color: COLORS.textSecondary,
-                    fontSize: 13,
-                  }}
-                  numberOfLines={1}>
-                  {item.customer}
-                </Text>
-              </View>
-            ) : null}
-            <Text
-              style={{
-                color: COLORS.textSecondary,
-                fontSize: 13,
-                marginTop: item.customer ? 2 : 2,
-              }}>
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
-            </Text>
-          </View>
-          {isActive ? (
-            <View
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                backgroundColor: COLORS.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <Check size={16} color="#FFFFFF" />
-            </View>
-          ) : null}
-        </TouchableOpacity>
-      );
-    },
-    [activeOrderId, handleSelectOrder, handleLongPress]
-  );
-
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg, flexDirection: 'column' }} testID="order-picker-screen">
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 20,
-            paddingTop: 8,
-            paddingBottom: 16,
-            flexShrink: 0,
-          }}>
-          <Text style={{ color: COLORS.text, fontSize: 24, fontWeight: '800' }}>My Orders</Text>
+    <View style={{ flex: 1, backgroundColor: COLORS.bg }} testID="order-picker-screen">
+
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
+        <Text style={{ color: COLORS.text, fontSize: 24, fontWeight: '800' }}>My Orders</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          testID="close-button"
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center' }}>
+          <X size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* New Order + History buttons — always visible */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity
-            onPress={() => router.back()}
-            testID="close-button"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: COLORS.card,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <X size={20} color={COLORS.textSecondary} />
+            onPress={handleNewOrder}
+            disabled={createOrder.isPending}
+            testID="new-order-button"
+            style={{ flex: 1, borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.cardBorder, opacity: createOrder.isPending ? 0.6 : 1, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+            {createOrder.isPending ? (
+              <ActivityIndicator color={COLORS.text} />
+            ) : (
+              <>
+                <Plus size={16} color={COLORS.text} />
+                <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '600' }}>New Order</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleViewHistory}
+            testID="view-history-button"
+            style={{ flex: 1, borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.cardBorder, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+            <History size={16} color={COLORS.textSecondary} />
+            <Text style={{ color: COLORS.textSecondary, fontSize: 15, fontWeight: '500' }}>History</Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Top actions — always visible */}
-        <View style={{ paddingHorizontal: 20, gap: 10, marginBottom: 16, flexShrink: 0 }}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity
-              onPress={handleNewOrder}
-              disabled={createOrder.isPending}
-              testID="new-order-button"
-              style={{
-                flex: 1,
-                borderRadius: 14,
-                paddingVertical: 14,
-                alignItems: 'center',
-                borderWidth: 1.5,
-                borderColor: COLORS.cardBorder,
-                opacity: createOrder.isPending ? 0.6 : 1,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 6,
-              }}>
-              {createOrder.isPending ? (
-                <ActivityIndicator color={COLORS.text} />
-              ) : (
-                <>
-                  <Plus size={16} color={COLORS.text} />
-                  <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '600' }}>
-                    New Order
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleViewHistory}
-              testID="view-history-button"
-              style={{
-                flex: 1,
-                borderRadius: 14,
-                paddingVertical: 14,
-                alignItems: 'center',
-                borderWidth: 1.5,
-                borderColor: COLORS.cardBorder,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: 6,
-              }}>
-              <History size={16} color={COLORS.textSecondary} />
-              <Text style={{ color: COLORS.textSecondary, fontSize: 15, fontWeight: '500' }}>
-                History
-              </Text>
-            </TouchableOpacity>
-          </View>
+      {/* Complete Current Order — always visible below buttons */}
+      {activeOrderItemCount > 0 && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <TouchableOpacity
+            onPress={handleCompleteOrder}
+            disabled={updateOrder.isPending || createOrder.isPending}
+            testID="complete-order-button"
+            style={{ backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 16, alignItems: 'center', opacity: updateOrder.isPending || createOrder.isPending ? 0.6 : 1 }}>
+            {updateOrder.isPending || createOrder.isPending ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Complete Current Order</Text>
+            )}
+          </TouchableOpacity>
         </View>
+      )}
 
-        {/* Scrollable middle — fills space between buttons and footer */}
-        <View style={{ flex: 1 }}>
-          {isLoading ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator color={COLORS.accent} testID="loading-indicator" />
-            </View>
-          ) : drafts.length === 0 ? (
-            /* Empty state */
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 20,
-                  backgroundColor: COLORS.accentLight,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
-                }}>
-                <Package size={36} color={COLORS.accent} />
-              </View>
-              <Text
-                style={{
-                  color: COLORS.text,
-                  fontSize: 18,
-                  fontWeight: '700',
-                  textAlign: 'center',
-                }}>
-                No orders yet
-              </Text>
-              <Text
-                style={{
-                  color: COLORS.textSecondary,
-                  fontSize: 14,
-                  textAlign: 'center',
-                  marginTop: 6,
-                  lineHeight: 20,
-                }}>
-                Create your first order to start adding items.
-              </Text>
+      {/* Draft list / loading / empty */}
+      {isLoading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={COLORS.accent} testID="loading-indicator" />
+        </View>
+      ) : drafts.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+          <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: COLORS.accentLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Package size={36} color={COLORS.accent} />
+          </View>
+          <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: '700', textAlign: 'center' }}>No orders yet</Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+            Create your first order to start adding items.
+          </Text>
+          <TouchableOpacity
+            onPress={handleNewOrder}
+            testID="create-first-order-button"
+            style={{ marginTop: 24, backgroundColor: COLORS.accent, borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14 }}>
+            {createOrder.isPending ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Create First Order</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={true} testID="drafts-list">
+          <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
+            Draft Orders
+          </Text>
+          {drafts.map((item) => {
+            const isActive = item.id === activeOrderId;
+            const itemCount = item._count?.items ?? 0;
+            return (
               <TouchableOpacity
-                onPress={handleNewOrder}
-                testID="create-first-order-button"
-                style={{
-                  marginTop: 24,
-                  backgroundColor: COLORS.accent,
-                  borderRadius: 14,
-                  paddingHorizontal: 28,
-                  paddingVertical: 14,
-                }}>
-                {createOrder.isPending ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
-                    Create First Order
-                  </Text>
-                )}
+                key={item.id}
+                onPress={() => handleSelectOrder(item)}
+                onLongPress={() => handleLongPress(item)}
+                testID={`draft-order-${item.id}`}
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isActive ? COLORS.accentLight : COLORS.card, borderRadius: 14, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: isActive ? COLORS.accent : COLORS.cardBorder }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: isActive ? '700' : '500' }} numberOfLines={1}>{item.name}</Text>
+                  {item.customer ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
+                      <User size={11} color={COLORS.textSecondary} />
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 13 }} numberOfLines={1}>{item.customer}</Text>
+                    </View>
+                  ) : null}
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 2 }}>{itemCount} {itemCount === 1 ? 'item' : 'items'}</Text>
+                </View>
+                {isActive ? (
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={16} color="#FFFFFF" />
+                  </View>
+                ) : null}
               </TouchableOpacity>
-            </View>
-          ) : (
-            /* Draft list */
-            <>
-              <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
-                <Text
-                  style={{
-                    color: COLORS.textSecondary,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    letterSpacing: 1,
-                    textTransform: 'uppercase',
-                    marginBottom: 10,
-                  }}>
-                  Draft Orders
-                </Text>
-              </View>
-              <FlatList
-                data={drafts}
-                renderItem={renderDraftItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
-                showsVerticalScrollIndicator={true}
-                testID="drafts-list"
-              />
-            </>
-          )}
-        </View>
-
-        {/* Complete Current Order — sticky footer */}
-        {activeOrderItemCount > 0 && (
-          <View
-            style={{
-              paddingHorizontal: 20,
-              paddingBottom: 32,
-              paddingTop: 12,
-              borderTopWidth: 1,
-              borderTopColor: COLORS.cardBorder,
-              flexShrink: 0,
-            }}>
-            <TouchableOpacity
-              onPress={handleCompleteOrder}
-              disabled={updateOrder.isPending || createOrder.isPending}
-              testID="complete-order-button"
-              style={{
-                backgroundColor: COLORS.accent,
-                borderRadius: 14,
-                paddingVertical: 16,
-                alignItems: 'center',
-                opacity: updateOrder.isPending || createOrder.isPending ? 0.6 : 1,
-              }}>
-              {updateOrder.isPending || createOrder.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
-                  Complete Current Order
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+            );
+          })}
+        </ScrollView>
+      )}
 
       <NewOrderModal
         visible={showNewOrderModal}
