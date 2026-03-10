@@ -528,7 +528,7 @@ export default function OrderPickerScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }} testID="order-picker-screen">
+    <View style={{ flex: 1, backgroundColor: COLORS.bg, flexDirection: 'column' }} testID="order-picker-screen">
         {/* Header */}
         <View
           style={{
@@ -538,6 +538,7 @@ export default function OrderPickerScreen() {
             paddingHorizontal: 20,
             paddingTop: 8,
             paddingBottom: 16,
+            flexShrink: 0,
           }}>
           <Text style={{ color: COLORS.text, fontSize: 24, fontWeight: '800' }}>My Orders</Text>
           <TouchableOpacity
@@ -556,7 +557,7 @@ export default function OrderPickerScreen() {
         </View>
 
         {/* Top actions — always visible */}
-        <View style={{ paddingHorizontal: 20, gap: 10, marginBottom: 16 }}>
+        <View style={{ paddingHorizontal: 20, gap: 10, marginBottom: 16, flexShrink: 0 }}>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity
               onPress={handleNewOrder}
@@ -669,8 +670,8 @@ export default function OrderPickerScreen() {
 
         {/* Draft list */}
         {!isLoading && drafts.length > 0 && (
-          <View style={{ flex: 1 }}>
-            <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
+          <View style={{ flex: 1, minHeight: 0 }}>
+            <View style={{ paddingHorizontal: 20, marginBottom: 8, flexShrink: 0 }}>
               <Text
                 style={{
                   color: COLORS.textSecondary,
@@ -687,7 +688,7 @@ export default function OrderPickerScreen() {
               data={drafts}
               renderItem={renderDraftItem}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
               showsVerticalScrollIndicator={true}
               testID="drafts-list"
               style={{ flex: 1 }}
@@ -704,6 +705,7 @@ export default function OrderPickerScreen() {
               paddingTop: 12,
               borderTopWidth: 1,
               borderTopColor: COLORS.cardBorder,
+              flexShrink: 0,
             }}>
             <TouchableOpacity
               onPress={handleCompleteOrder}
