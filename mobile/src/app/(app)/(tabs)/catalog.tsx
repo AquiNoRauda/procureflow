@@ -19,11 +19,12 @@ import {
   useUpdateSupplier,
   useRemoveSupplier,
   useAddCatalogItem,
+  useUpdateCatalogItem,
   useRemoveCatalogItem,
   CatalogSupplier,
   CatalogItem,
 } from '@/lib/hooks/use-catalog';
-import { Plus, Trash2, ChevronRight, X, Check, BookOpen, Tag, FileDown } from 'lucide-react-native';
+import { Plus, Trash2, ChevronRight, X, Check, BookOpen, Tag, FileDown, Edit2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { exportCatalogPDF } from '@/lib/pdf-export';
@@ -109,10 +110,11 @@ function SupplierModal({
 }
 
 function ItemModal({
-  visible, supplier, onClose, onSave,
+  visible, supplier, existingItem, onClose, onSave,
 }: {
   visible: boolean;
   supplier: CatalogSupplier | null;
+  existingItem: CatalogItem | null;
   onClose: () => void;
   onSave: (name: string, unit: string, category: string) => void;
 }) {
@@ -121,9 +123,15 @@ function ItemModal({
   const [unit, setUnit] = useState('');
   const [category, setCategory] = useState('');
 
+  const isEditing = existingItem != null;
+
   React.useEffect(() => {
-    if (visible) { setName(''); setUnit(''); setCategory(''); }
-  }, [visible]);
+    if (visible) {
+      setName(existingItem?.name ?? '');
+      setUnit(existingItem?.unit ?? '');
+      setCategory(existingItem?.category ?? '');
+    }
+  }, [visible, existingItem]);
 
   const bg = isDark ? '#1E293B' : '#FFFFFF';
   const textColor = isDark ? '#F1F5F9' : '#0F172A';
@@ -138,7 +146,7 @@ function ItemModal({
           <View style={{ backgroundColor: bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <View>
-                <Text style={{ color: textColor, fontSize: 18, fontWeight: '700' }}>New Item</Text>
+                <Text style={{ color: textColor, fontSize: 18, fontWeight: '700' }}>{isEditing ? 'Edit Item' : 'New Item'}</Text>
                 {supplier != null && <Text style={{ color: accent, fontSize: 13, marginTop: 2 }}>{supplier.name}</Text>}
               </View>
               <TouchableOpacity onPress={onClose}><X size={22} color={secondary} /></TouchableOpacity>
@@ -158,7 +166,7 @@ function ItemModal({
             <TouchableOpacity
               onPress={() => { if (name.trim() && unit.trim()) onSave(name.trim(), unit.trim(), category.trim() || 'General'); }}
               style={{ marginTop: 4, backgroundColor: accent, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Add Item</Text>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{isEditing ? 'Save Changes' : 'Add Item'}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -178,10 +186,11 @@ export default function CatalogScreen() {
   const updateSupplierMut = useUpdateSupplier();
   const removeSupplierMut = useRemoveSupplier();
   const addItemMut = useAddCatalogItem();
+  const updateItemMut = useUpdateCatalogItem();
   const removeItemMut = useRemoveCatalogItem();
 
   const [supplierModal, setSupplierModal] = useState<{ visible: boolean; existing: CatalogSupplier | null }>({ visible: false, existing: null });
-  const [itemModal, setItemModal] = useState<{ visible: boolean; supplier: CatalogSupplier | null }>({ visible: false, supplier: null });
+  const [itemModal, setItemModal] = useState<{ visible: boolean; supplier: CatalogSupplier | null; existingItem: CatalogItem | null }>({ visible: false, supplier: null, existingItem: null });
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
 
@@ -244,10 +253,18 @@ export default function CatalogScreen() {
     const { supplier } = itemModal;
     if (!supplier) return;
     addItemMut.mutate({ id: Math.random().toString(36).slice(2), name, supplierId: supplier.id, supplierName: supplier.name, unit, category });
-    setItemModal({ visible: false, supplier: null });
+    setItemModal({ visible: false, supplier: null, existingItem: null });
     setExpandedIds((prev) => new Set(prev).add(supplier.id));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [itemModal, addItemMut]);
+
+  const handleEditItem = useCallback((name: string, unit: string, category: string) => {
+    const { existingItem } = itemModal;
+    if (!existingItem) return;
+    updateItemMut.mutate({ id: existingItem.id, name, unit, category });
+    setItemModal({ visible: false, supplier: null, existingItem: null });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [itemModal, updateItemMut]);
 
   const handleRemoveItem = useCallback((item: CatalogItem) => {
     Alert.alert(`Remove "${item.name}"?`, 'It will be removed from the catalog.',
@@ -318,20 +335,23 @@ export default function CatalogScreen() {
 
                   {expanded === true && (
                     <View style={{ backgroundColor: colors.card, borderWidth: 1, borderTopWidth: 0, borderColor: colors.cardBorder, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, overflow: 'hidden' }}>
-                      {supplierItems.map((item, idx) => (
+                      {supplierItems.map((item) => (
                         <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.rowBorder }}>
                           <Tag size={13} color={supplier.color} style={{ marginRight: 10 }} />
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>{item.name}</Text>
                             <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 1 }}>{item.unit} · {item.category}</Text>
                           </View>
+                          <TouchableOpacity onPress={() => setItemModal({ visible: true, supplier, existingItem: item })} style={{ padding: 6 }}>
+                            <Edit2 size={14} color={colors.textSecondary} />
+                          </TouchableOpacity>
                           <TouchableOpacity onPress={() => handleRemoveItem(item)} style={{ padding: 6 }}>
                             <Trash2 size={15} color={colors.danger} />
                           </TouchableOpacity>
                         </View>
                       ))}
                       <TouchableOpacity
-                        onPress={() => setItemModal({ visible: true, supplier })}
+                        onPress={() => setItemModal({ visible: true, supplier, existingItem: null })}
                         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.rowBorder, gap: 8 }}>
                         <Plus size={15} color={supplier.color} />
                         <Text style={{ color: supplier.color, fontSize: 14, fontWeight: '600' }}>Add item to {supplier.name}</Text>
@@ -354,8 +374,9 @@ export default function CatalogScreen() {
       <ItemModal
         visible={itemModal.visible}
         supplier={itemModal.supplier}
-        onClose={() => setItemModal({ visible: false, supplier: null })}
-        onSave={handleAddItem}
+        existingItem={itemModal.existingItem}
+        onClose={() => setItemModal({ visible: false, supplier: null, existingItem: null })}
+        onSave={itemModal.existingItem != null ? handleEditItem : handleAddItem}
       />
     </View>
   );

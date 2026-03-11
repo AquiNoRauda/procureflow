@@ -68,6 +68,15 @@ export function useAddCatalogItem() {
   });
 }
 
+export function useUpdateCatalogItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name, unit, category }: { id: string; name: string; unit: string; category: string }) =>
+      api.patch<CatalogItem>(`/api/catalog/items/${id}`, { name, unit, category }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: CATALOG_KEY }),
+  });
+}
+
 export function useRemoveCatalogItem() {
   const qc = useQueryClient();
   return useMutation({

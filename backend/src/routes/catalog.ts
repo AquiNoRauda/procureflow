@@ -98,6 +98,26 @@ app.post("/items", async (c) => {
   return c.json({ data: item }, 201);
 });
 
+// PATCH /api/catalog/items/:id
+app.patch("/items/:id", async (c) => {
+  const guard = requireAuth(c);
+  if (guard) return guard;
+  const user = c.get("user")!;
+
+  const { id } = c.req.param();
+  const body = await c.req.json<{ name: string; unit: string; category: string }>();
+
+  const existing = await prisma.catalogItem.findFirst({ where: { id, userId: user.id } });
+  if (!existing) return c.json({ error: { message: "Item not found" } }, 404);
+
+  const updatedItem = await prisma.catalogItem.update({
+    where: { id },
+    data: { name: body.name, unit: body.unit, category: body.category },
+  });
+
+  return c.json({ data: updatedItem });
+});
+
 // DELETE /api/catalog/items/:id
 app.delete("/items/:id", async (c) => {
   const guard = requireAuth(c);
