@@ -247,39 +247,51 @@ export async function exportCompactOrderPDF(
   const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
   const totalQty = groups.reduce((s, g) => s + g.totalQty, 0);
 
-  const supplierTables = groups
+  // Build each supplier table cell
+  const tableCells = groups
     .map((group) => {
       const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
       const rows = group.items
         .map(
           (item, i) => `
-          <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f9fafb'}">
-            <td style="padding:7px 10px;font-size:12px;color:#111827;border-bottom:1px solid #e5e7eb;">${item.name}</td>
-            <td style="padding:7px 10px;font-size:12px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:center;">${item.unit}</td>
-            <td style="padding:7px 10px;font-size:13px;font-weight:700;color:#111827;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
+          <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
+            <td style="padding:4px 7px;font-size:10px;color:#111827;border-bottom:1px solid #e5e7eb;">${item.name}</td>
+            <td style="padding:4px 7px;font-size:9.5px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:center;white-space:nowrap;">${item.unit}</td>
+            <td style="padding:4px 7px;font-size:10.5px;font-weight:700;color:#111827;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
           </tr>`
         )
         .join('');
 
       return `
-      <div style="margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;page-break-inside:avoid;">
-        <div style="background:${accent};padding:8px 12px;display:flex;align-items:center;justify-content:space-between;">
-          <span style="color:#ffffff;font-size:13px;font-weight:700;">${group.supplier}</span>
-          <span style="color:rgba(255,255,255,0.8);font-size:11px;">${group.items.length} item${group.items.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${group.totalQty} qty</span>
+      <td style="vertical-align:top;padding:0 5px 10px 5px;">
+        <div style="border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">
+          <div style="background:${accent};padding:5px 8px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="color:#fff;font-size:10.5px;font-weight:700;">${group.supplier}</span>
+            <span style="color:rgba(255,255,255,0.85);font-size:9px;">${group.items.length} · ${group.totalQty} qty</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;background:#fff;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:4px 7px;font-size:8.5px;font-weight:600;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;">Item</th>
+                <th style="padding:4px 7px;font-size:8.5px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;width:40px;">Unit</th>
+                <th style="padding:4px 7px;font-size:8.5px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;width:30px;">Qty</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
         </div>
-        <table style="width:100%;border-collapse:collapse;background:#ffffff;">
-          <thead>
-            <tr style="background:#f3f4f6;">
-              <th style="padding:6px 10px;font-size:10px;font-weight:600;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1.5px solid #e5e7eb;">Item</th>
-              <th style="padding:6px 10px;font-size:10px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1.5px solid #e5e7eb;width:80px;">Unit</th>
-              <th style="padding:6px 10px;font-size:10px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1.5px solid #e5e7eb;width:60px;">Qty</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-    })
-    .join('');
+      </td>`;
+    });
+
+  // Pack into rows of 3 columns
+  const cols = 3;
+  const tableRows: string[] = [];
+  for (let i = 0; i < tableCells.length; i += cols) {
+    const chunk = tableCells.slice(i, i + cols);
+    // Pad to full row width so layout stays stable
+    while (chunk.length < cols) chunk.push('<td style="padding:0 5px 10px 5px;"></td>');
+    tableRows.push(`<tr>${chunk.join('')}</tr>`);
+  }
 
   const html = `<!DOCTYPE html>
 <html>
@@ -287,65 +299,51 @@ export async function exportCompactOrderPDF(
   <meta charset="utf-8"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: #ffffff; padding: 20px 24px; color: #111827; }
-    @media print { body { padding: 12px 16px; } }
+    body {
+      font-family: -apple-system, Helvetica, Arial, sans-serif;
+      background: #ffffff;
+      padding: 12px 14px;
+      color: #111827;
+      /* Force landscape via CSS page rule */
+    }
+    @page { size: A4 landscape; margin: 10mm 12mm; }
   </style>
 </head>
 <body>
   <!-- Compact header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid #111827;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:7px;border-bottom:2px solid #111827;">
     <div>
-      <div style="font-size:20px;font-weight:800;color:#111827;letter-spacing:-0.3px;">Purchase Order</div>
-      <div style="font-size:12px;color:#6b7280;margin-top:2px;">${orderName} &nbsp;·&nbsp; ${orderDate}${customer ? ` &nbsp;·&nbsp; For: ${customer}` : ''}</div>
+      <span style="font-size:16px;font-weight:800;color:#111827;letter-spacing:-0.3px;">Purchase Order</span>
+      <span style="font-size:10px;color:#6b7280;margin-left:10px;">${orderName} &nbsp;·&nbsp; ${orderDate}${customer ? ` &nbsp;·&nbsp; For: ${customer}` : ''}</span>
     </div>
-    <div style="text-align:right;">
-      <div style="font-size:12px;color:#6b7280;">${groups.length} supplier${groups.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${totalItems} items &nbsp;·&nbsp; ${totalQty} total qty</div>
+    <div style="font-size:10px;color:#6b7280;">
+      ${groups.length} supplier${groups.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${totalItems} items &nbsp;·&nbsp; ${totalQty} total qty
     </div>
   </div>
 
-  <!-- Two-column layout for tables -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-    ${groups
-      .map((group, idx) => {
-        const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
-        const rows = group.items
-          .map(
-            (item, i) => `
-            <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f9fafb'}">
-              <td style="padding:6px 9px;font-size:11.5px;color:#111827;border-bottom:1px solid #e5e7eb;">${item.name}</td>
-              <td style="padding:6px 9px;font-size:11px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:center;">${item.unit}</td>
-              <td style="padding:6px 9px;font-size:12px;font-weight:700;color:#111827;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
-            </tr>`
-          )
-          .join('');
-        return `
-        <div style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;page-break-inside:avoid;align-self:start;">
-          <div style="background:${accent};padding:8px 11px;display:flex;align-items:center;justify-content:space-between;">
-            <span style="color:#ffffff;font-size:12.5px;font-weight:700;">${group.supplier}</span>
-            <span style="color:rgba(255,255,255,0.8);font-size:10px;">${group.items.length} item${group.items.length !== 1 ? 's' : ''} · ${group.totalQty} qty</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;background:#ffffff;">
-            <thead>
-              <tr style="background:#f3f4f6;">
-                <th style="padding:5px 9px;font-size:9.5px;font-weight:600;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1.5px solid #e5e7eb;">Item</th>
-                <th style="padding:5px 9px;font-size:9.5px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1.5px solid #e5e7eb;width:55px;">Unit</th>
-                <th style="padding:5px 9px;font-size:9.5px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1.5px solid #e5e7eb;width:45px;">Qty</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>`;
-      })
-      .join('')}
-  </div>
+  <!-- 3-column supplier grid using table layout for PDF compat -->
+  <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+    <colgroup>
+      <col style="width:33.33%"/>
+      <col style="width:33.33%"/>
+      <col style="width:33.33%"/>
+    </colgroup>
+    ${tableRows.join('\n    ')}
+  </table>
 
-  <div style="margin-top:16px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:center;font-size:10px;color:#9ca3af;">
+  <div style="margin-top:8px;padding-top:6px;border-top:1px solid #e5e7eb;text-align:center;font-size:8.5px;color:#9ca3af;">
     Generated by Purchasing App
   </div>
 </body>
 </html>`;
 
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  // landscape: A4 = 841.89 x 595.28 pts — pass explicit dimensions
+  const { uri } = await Print.printToFileAsync({
+    html,
+    base64: false,
+    width: 842,
+    height: 595,
+  });
 
   const canShare = await Sharing.isAvailableAsync();
   if (canShare) {
