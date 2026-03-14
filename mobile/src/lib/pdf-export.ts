@@ -248,27 +248,32 @@ export async function exportCompactOrderPDF(
   const totalQty = groups.reduce((s, g) => s + g.totalQty, 0);
 
   // Strategy: render into a large virtual canvas then CSS-scale it down to fit
-  // the PDF page exactly. This avoids any clipping — all rows are fully rendered.
+  // the PDF page exactly. Nothing is clipped — all rows are fully rendered.
   //
-  // PDF page = 842×595 (A4 landscape at 72 dpi).
-  // We render at SCALE_BASE × that size, then transform: scale(1/SCALE_BASE).
-  // More items → larger scale base so rows stay readable while everything fits.
-  const maxColItems = Math.max(...Array.from({ length: 3 }, (_, ci) => {
-    let count = 0;
-    groups.forEach((g, i) => { if (i % 3 === ci) count += g.items.length; });
-    return count;
-  }));
-  // Each row ≈ 18px at base scale; header overhead ≈ 60px per supplier.
-  // Available column height at base scale = 519px (595 - header - footer - padding).
-  // Scale up so content fits: needed / available, clamped to [1, 3].
-  const HEADER_OVERHEAD = 60; // per supplier box: colored header + th row
-  const ROW_H = 18;
-  const AVAIL_BASE = 519;
-  const tallestCol = maxColItems * ROW_H + groups.length * HEADER_OVERHEAD / 3;
-  const SCALE_BASE = Math.min(3, Math.max(1, Math.ceil((tallestCol / AVAIL_BASE) * 10) / 10));
-
+  // Base unit sizes (at scale=1, fitting A4 landscape 842×595px):
+  const ROW_H = 18;        // px per data row
+  const BOX_OVERHEAD = 42; // px per supplier box: colored header + th row + gap
   const PAGE_W = 842;
   const PAGE_H = 595;
+  const AVAIL_H = 519; // 595 - 36 header - 20 footer - 18*2 padding - 4 gap
+
+  // Balance columns by item count (greedy bin-packing) — do this FIRST
+  // so scale calculation uses the real column distribution.
+  const cols = 3;
+  const columns: SupplierGroup[][] = Array.from({ length: cols }, () => []);
+  const colWeights = [0, 0, 0];
+  for (const g of groups) {
+    const lightest = colWeights.indexOf(Math.min(...colWeights));
+    columns[lightest].push(g);
+    colWeights[lightest] += g.items.length * ROW_H + BOX_OVERHEAD;
+  }
+
+  // Tallest column height in base-scale pixels
+  const tallestCol = Math.max(...colWeights);
+  // Scale up canvas so tallest column fills available height exactly.
+  // Add 10% safety margin and clamp to [1, 4].
+  const SCALE_BASE = Math.min(4, Math.max(1, (tallestCol * 1.1) / AVAIL_H));
+
   const CANVAS_W = Math.round(PAGE_W * SCALE_BASE);
   const CANVAS_H = Math.round(PAGE_H * SCALE_BASE);
   const PAD = Math.round(18 * SCALE_BASE);
@@ -282,16 +287,6 @@ export async function exportCompactOrderPDF(
   const CELL_PAD_V = Math.round(3 * SCALE_BASE);
   const CELL_PAD_H = Math.round(6 * SCALE_BASE);
   const S_HEAD_PAD = Math.round(5 * SCALE_BASE);
-
-  // Balance columns by item count (greedy bin-packing)
-  const cols = 3;
-  const columns: SupplierGroup[][] = Array.from({ length: cols }, () => []);
-  const colWeights = [0, 0, 0];
-  for (const g of groups) {
-    const lightest = colWeights.indexOf(Math.min(...colWeights));
-    columns[lightest].push(g);
-    colWeights[lightest] += g.items.length + 3; // +3 for header overhead
-  }
 
   const colsHtml = columns.map((colGroups) => {
     if (colGroups.length === 0) return `<div style="flex:1;min-width:0;"></div>`;
@@ -363,7 +358,7 @@ export async function exportCompactOrderPDF(
     </div>
 
     <!-- 3-column grid -->
-    <div style="display:flex;flex-direction:row;gap:${GAP}px;flex:1;margin-top:${GAP}px;overflow:hidden;">
+    <div style="display:flex;flex-direction:row;gap:${GAP}px;flex:1;margin-top:${GAP}px;align-items:flex-start;">
       ${colsHtml}
     </div>
 
