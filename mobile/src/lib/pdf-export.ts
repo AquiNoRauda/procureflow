@@ -255,7 +255,8 @@ export async function exportCompactOrderPDF(
   const BOX_OVERHEAD = 42; // px per supplier box: colored header + th row + gap
   const PAGE_W = 842;
   const PAGE_H = 595;
-  const AVAIL_H = 519; // 595 - 36 header - 20 footer - 18*2 padding - 4 gap
+  // Tight margins: 8px padding, 32px header, 16px footer, 6px gap
+  const AVAIL_H = 595 - 8 * 2 - 32 - 16 - 6; // = 525
 
   // Balance columns by item count (greedy bin-packing) — do this FIRST
   // so scale calculation uses the real column distribution.
@@ -272,14 +273,14 @@ export async function exportCompactOrderPDF(
   const tallestCol = Math.max(...colWeights);
   // Scale up canvas so tallest column fills available height exactly.
   // Add 10% safety margin and clamp to [1, 4].
-  const SCALE_BASE = Math.min(4, Math.max(1, (tallestCol * 1.1) / AVAIL_H));
+  const SCALE_BASE = Math.min(4, Math.max(1, (tallestCol * 1.02) / AVAIL_H));
 
   const CANVAS_W = Math.round(PAGE_W * SCALE_BASE);
   const CANVAS_H = Math.round(PAGE_H * SCALE_BASE);
-  const PAD = Math.round(18 * SCALE_BASE);
-  const HEADER_H = Math.round(40 * SCALE_BASE);
-  const FOOTER_H = Math.round(20 * SCALE_BASE);
-  const GAP = Math.round(8 * SCALE_BASE);
+  const PAD = Math.round(8 * SCALE_BASE);
+  const HEADER_H = Math.round(32 * SCALE_BASE);
+  const FOOTER_H = Math.round(16 * SCALE_BASE);
+  const GAP = Math.round(6 * SCALE_BASE);
   const FONT_SUPPLIER = Math.round(10 * SCALE_BASE);
   const FONT_META = Math.round(8.5 * SCALE_BASE);
   const FONT_TH = Math.round(7.5 * SCALE_BASE);
