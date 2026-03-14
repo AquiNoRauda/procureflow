@@ -20,7 +20,7 @@ const request = async <T>(
     },
   });
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return null as T;
 
   const contentType = response.headers.get("content-type");
   if (contentType?.includes("application/json")) {
@@ -28,7 +28,7 @@ const request = async <T>(
     return json.data;
   }
 
-  return undefined as T;
+  throw new Error(`Unexpected response: ${response.status} ${response.statusText}`);
 };
 
 export const api = {

@@ -23,7 +23,10 @@ export const CATALOG_KEY = ["catalog"] as const;
 export function useCatalog() {
   return useQuery({
     queryKey: CATALOG_KEY,
-    queryFn: () => api.get<{ suppliers: CatalogSupplier[]; items: CatalogItem[] }>("/api/catalog"),
+    queryFn: async () => {
+      const result = await api.get<{ suppliers: CatalogSupplier[]; items: CatalogItem[] }>("/api/catalog");
+      return result ?? { suppliers: [], items: [] };
+    },
   });
 }
 
