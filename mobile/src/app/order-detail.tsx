@@ -99,13 +99,13 @@ export default function OrderDetailScreen() {
     if (items.length === 0) return;
     setExportingCompact(true);
     try {
-      await exportCompactOrderPDF(items, name ?? 'Order', customerName ?? undefined);
+      await exportCompactOrderPDF(items, name ?? 'Order', customerName ?? undefined, supplierColorMap);
     } catch {
       Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
     } finally {
       setExportingCompact(false);
     }
-  }, [items, name, customerName]);
+  }, [items, name, customerName, supplierColorMap]);
 
   const handleReopen = useCallback(() => {
     if (!id) return;

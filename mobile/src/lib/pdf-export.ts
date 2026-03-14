@@ -222,6 +222,7 @@ export async function exportCompactOrderPDF(
   items: PurchaseItem[],
   orderName: string,
   customer?: string,
+  supplierColorMap?: Record<string, string>,
 ): Promise<void> {
   if (items.length === 0) return;
 
@@ -251,8 +252,10 @@ export async function exportCompactOrderPDF(
   // the PDF page exactly. Nothing is clipped — all rows are fully rendered.
   //
   // Base unit sizes (at scale=1, fitting A4 landscape 842×595px):
-  const ROW_H = 18;        // px per data row
-  const BOX_OVERHEAD = 42; // px per supplier box: colored header + th row + gap
+  // ROW_H: supplier-header(20) + thead(16) + gap(6) + border(2) = overhead per box
+  // Measured conservatively to prevent clipping.
+  const ROW_H = 17;        // px per data row (font 9 + pad 3*2 + border 1 + rounding)
+  const BOX_OVERHEAD = 56; // px per supplier box overhead (header + thead + gap + borders)
   const PAGE_W = 842;
   const PAGE_H = 595;
   // Tight margins: 8px padding, 32px header, 16px footer, 6px gap
@@ -272,8 +275,8 @@ export async function exportCompactOrderPDF(
   // Tallest column height in base-scale pixels
   const tallestCol = Math.max(...colWeights);
   // Scale up canvas so tallest column fills available height exactly.
-  // Add 10% safety margin and clamp to [1, 4].
-  const SCALE_BASE = Math.min(4, Math.max(1, (tallestCol * 1.02) / AVAIL_H));
+  // Use 1.15 safety margin to account for font rendering differences.
+  const SCALE_BASE = Math.min(4, Math.max(1, (tallestCol * 1.15) / AVAIL_H));
 
   const CANVAS_W = Math.round(PAGE_W * SCALE_BASE);
   const CANVAS_H = Math.round(PAGE_H * SCALE_BASE);
@@ -292,7 +295,7 @@ export async function exportCompactOrderPDF(
   const colsHtml = columns.map((colGroups) => {
     if (colGroups.length === 0) return `<div style="flex:1;min-width:0;"></div>`;
     const boxes = colGroups.map((group) => {
-      const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
+      const accent = supplierColorMap?.[group.supplier] ?? SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
       const rows = group.items.map((item, i) => `
         <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
           <td style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${FONT_TD}px;color:#111827;border-bottom:1px solid #f3f4f6;">${item.name}</td>
