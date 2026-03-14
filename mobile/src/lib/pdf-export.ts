@@ -247,18 +247,82 @@ export async function exportCompactOrderPDF(
   const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
   const totalQty = groups.reduce((s, g) => s + g.totalQty, 0);
 
-  // Build each supplier table cell — now handled inline in the HTML template below
+  // Strategy: render into a large virtual canvas then CSS-scale it down to fit
+  // the PDF page exactly. This avoids any clipping — all rows are fully rendered.
+  //
+  // PDF page = 842×595 (A4 landscape at 72 dpi).
+  // We render at SCALE_BASE × that size, then transform: scale(1/SCALE_BASE).
+  // More items → larger scale base so rows stay readable while everything fits.
+  const maxColItems = Math.max(...Array.from({ length: 3 }, (_, ci) => {
+    let count = 0;
+    groups.forEach((g, i) => { if (i % 3 === ci) count += g.items.length; });
+    return count;
+  }));
+  // Each row ≈ 18px at base scale; header overhead ≈ 60px per supplier.
+  // Available column height at base scale = 519px (595 - header - footer - padding).
+  // Scale up so content fits: needed / available, clamped to [1, 3].
+  const HEADER_OVERHEAD = 60; // per supplier box: colored header + th row
+  const ROW_H = 18;
+  const AVAIL_BASE = 519;
+  const tallestCol = maxColItems * ROW_H + groups.length * HEADER_OVERHEAD / 3;
+  const SCALE_BASE = Math.min(3, Math.max(1, Math.ceil((tallestCol / AVAIL_BASE) * 10) / 10));
 
-  // expo-print renders HTML in a WebView and paginates by content height.
-  // To force a single landscape page we must hard-clamp the root to exactly
-  // the PDF canvas size (842 × 595 CSS px = A4 landscape at 72dpi) and set
-  // overflow:hidden so nothing bleeds onto a second page.
   const PAGE_W = 842;
   const PAGE_H = 595;
-  const PAD = 18; // px padding inside the page
-  const HEADER_H = 34; // px for the title row + divider
-  const FOOTER_H = 18;
-  const GRID_H = PAGE_H - PAD * 2 - HEADER_H - FOOTER_H - 6; // available for tables
+  const CANVAS_W = Math.round(PAGE_W * SCALE_BASE);
+  const CANVAS_H = Math.round(PAGE_H * SCALE_BASE);
+  const PAD = Math.round(18 * SCALE_BASE);
+  const HEADER_H = Math.round(40 * SCALE_BASE);
+  const FOOTER_H = Math.round(20 * SCALE_BASE);
+  const GAP = Math.round(8 * SCALE_BASE);
+  const FONT_SUPPLIER = Math.round(10 * SCALE_BASE);
+  const FONT_META = Math.round(8.5 * SCALE_BASE);
+  const FONT_TH = Math.round(7.5 * SCALE_BASE);
+  const FONT_TD = Math.round(9 * SCALE_BASE);
+  const CELL_PAD_V = Math.round(3 * SCALE_BASE);
+  const CELL_PAD_H = Math.round(6 * SCALE_BASE);
+  const S_HEAD_PAD = Math.round(5 * SCALE_BASE);
+
+  // Balance columns by item count (greedy bin-packing)
+  const cols = 3;
+  const columns: SupplierGroup[][] = Array.from({ length: cols }, () => []);
+  const colWeights = [0, 0, 0];
+  for (const g of groups) {
+    const lightest = colWeights.indexOf(Math.min(...colWeights));
+    columns[lightest].push(g);
+    colWeights[lightest] += g.items.length + 3; // +3 for header overhead
+  }
+
+  const colsHtml = columns.map((colGroups) => {
+    if (colGroups.length === 0) return `<div style="flex:1;min-width:0;"></div>`;
+    const boxes = colGroups.map((group) => {
+      const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
+      const rows = group.items.map((item, i) => `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
+          <td style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${FONT_TD}px;color:#111827;border-bottom:1px solid #f3f4f6;">${item.name}</td>
+          <td style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${Math.round(FONT_TD * 0.95)}px;color:#6b7280;text-align:center;white-space:nowrap;border-bottom:1px solid #f3f4f6;">${item.unit}</td>
+          <td style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${FONT_TD}px;font-weight:700;color:#111827;text-align:center;border-bottom:1px solid #f3f4f6;">${item.quantity}</td>
+        </tr>`).join('');
+      return `
+      <div style="border:1px solid #e5e7eb;border-radius:${Math.round(6 * SCALE_BASE)}px;overflow:hidden;margin-bottom:${GAP}px;">
+        <div style="background:${accent};padding:${S_HEAD_PAD}px ${Math.round(8 * SCALE_BASE)}px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="color:#fff;font-size:${FONT_SUPPLIER}px;font-weight:700;">${group.supplier}</span>
+          <span style="color:rgba(255,255,255,0.85);font-size:${FONT_META}px;">${group.items.length} · ${group.totalQty} qty</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;">
+          <thead>
+            <tr style="background:#f3f4f6;">
+              <th style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${FONT_TH}px;font-weight:600;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;">Item</th>
+              <th style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${FONT_TH}px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;width:${Math.round(40 * SCALE_BASE)}px;">Unit</th>
+              <th style="padding:${CELL_PAD_V}px ${CELL_PAD_H}px;font-size:${FONT_TH}px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;width:${Math.round(32 * SCALE_BASE)}px;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+    return `<div style="flex:1;min-width:0;">${boxes}</div>`;
+  }).join('');
 
   const html = `<!DOCTYPE html>
 <html>
@@ -274,133 +338,40 @@ export async function exportCompactOrderPDF(
       background: #ffffff;
       color: #111827;
     }
-    .page {
-      width: ${PAGE_W}px;
-      height: ${PAGE_H}px;
-      padding: ${PAD}px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-bottom: 7px;
-      border-bottom: 2px solid #111827;
-      flex-shrink: 0;
-      height: ${HEADER_H}px;
-    }
-    .grid {
-      display: flex;
-      flex-direction: row;
-      gap: 8px;
-      flex: 1;
-      overflow: hidden;
-      margin-top: 6px;
-    }
-    .col {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      overflow: hidden;
-      min-width: 0;
-    }
-    .supplier-box {
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .supplier-header {
-      padding: 4px 8px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .s-name { color: #fff; font-size: 10px; font-weight: 700; }
-    .s-meta { color: rgba(255,255,255,0.85); font-size: 8.5px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    thead tr { background: #f3f4f6; }
-    th {
-      padding: 3px 6px;
-      font-size: 7.5px;
-      font-weight: 600;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    th.left { text-align: left; }
-    th.center { text-align: center; width: 36px; }
-    td { padding: 3px 6px; font-size: 9px; border-bottom: 1px solid #f3f4f6; }
-    td.name { color: #111827; }
-    td.unit { color: #6b7280; text-align: center; white-space: nowrap; }
-    td.qty { color: #111827; font-weight: 700; text-align: center; }
-    .footer {
-      flex-shrink: 0;
-      text-align: center;
-      font-size: 7.5px;
-      color: #9ca3af;
-      padding-top: 4px;
-      border-top: 1px solid #e5e7eb;
-      margin-top: 4px;
-      height: ${FOOTER_H}px;
-    }
   </style>
 </head>
 <body>
-<div class="page">
-  <div class="header">
-    <div>
-      <span style="font-size:15px;font-weight:800;letter-spacing:-0.3px;">Purchase Order</span>
-      <span style="font-size:9.5px;color:#6b7280;margin-left:10px;">${orderName} &nbsp;·&nbsp; ${orderDate}${customer ? ` &nbsp;·&nbsp; For: ${customer}` : ''}</span>
+  <div style="
+    width: ${CANVAS_W}px;
+    height: ${CANVAS_H}px;
+    padding: ${PAD}px;
+    display: flex;
+    flex-direction: column;
+    transform-origin: top left;
+    transform: scale(${(1 / SCALE_BASE).toFixed(6)});
+    background: #ffffff;
+  ">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:${Math.round(7 * SCALE_BASE)}px;border-bottom:${Math.round(2 * SCALE_BASE)}px solid #111827;flex-shrink:0;height:${HEADER_H}px;">
+      <div>
+        <span style="font-size:${Math.round(15 * SCALE_BASE)}px;font-weight:800;letter-spacing:-0.3px;">Purchase Order</span>
+        <span style="font-size:${Math.round(9.5 * SCALE_BASE)}px;color:#6b7280;margin-left:${Math.round(10 * SCALE_BASE)}px;">${orderName} &nbsp;·&nbsp; ${orderDate}${customer ? ` &nbsp;·&nbsp; For: ${customer}` : ''}</span>
+      </div>
+      <div style="font-size:${Math.round(9.5 * SCALE_BASE)}px;color:#6b7280;">
+        ${groups.length} supplier${groups.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${totalItems} items &nbsp;·&nbsp; ${totalQty} total qty
+      </div>
     </div>
-    <div style="font-size:9.5px;color:#6b7280;">
-      ${groups.length} supplier${groups.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${totalItems} items &nbsp;·&nbsp; ${totalQty} total qty
+
+    <!-- 3-column grid -->
+    <div style="display:flex;flex-direction:row;gap:${GAP}px;flex:1;margin-top:${GAP}px;overflow:hidden;">
+      ${colsHtml}
+    </div>
+
+    <!-- Footer -->
+    <div style="flex-shrink:0;text-align:center;font-size:${Math.round(7.5 * SCALE_BASE)}px;color:#9ca3af;padding-top:${Math.round(4 * SCALE_BASE)}px;border-top:1px solid #e5e7eb;margin-top:${Math.round(4 * SCALE_BASE)}px;height:${FOOTER_H}px;">
+      Generated by Purchasing App
     </div>
   </div>
-
-  <div class="grid">
-    ${(() => {
-      // Distribute suppliers across 3 columns left-to-right
-      const cols = 3;
-      const columns: SupplierGroup[][] = Array.from({ length: cols }, () => []);
-      groups.forEach((g, i) => columns[i % cols].push(g));
-      return columns.map((colGroups) => {
-        if (colGroups.length === 0) return '<div class="col"></div>';
-        const boxes = colGroups.map((group) => {
-          const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
-          const rows = group.items.map((item, i) => `
-            <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
-              <td class="name">${item.name}</td>
-              <td class="unit">${item.unit}</td>
-              <td class="qty">${item.quantity}</td>
-            </tr>`).join('');
-          return `
-          <div class="supplier-box">
-            <div class="supplier-header" style="background:${accent};">
-              <span class="s-name">${group.supplier}</span>
-              <span class="s-meta">${group.items.length} · ${group.totalQty} qty</span>
-            </div>
-            <table>
-              <thead><tr>
-                <th class="left">Item</th>
-                <th class="center">Unit</th>
-                <th class="center">Qty</th>
-              </tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>`;
-        }).join('');
-        return `<div class="col">${boxes}</div>`;
-      }).join('');
-    })()}
-  </div>
-
-  <div class="footer">Generated by Purchasing App</div>
-</div>
 </body>
 </html>`;
 
