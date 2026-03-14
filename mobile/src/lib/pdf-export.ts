@@ -247,51 +247,18 @@ export async function exportCompactOrderPDF(
   const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
   const totalQty = groups.reduce((s, g) => s + g.totalQty, 0);
 
-  // Build each supplier table cell
-  const tableCells = groups
-    .map((group) => {
-      const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
-      const rows = group.items
-        .map(
-          (item, i) => `
-          <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
-            <td style="padding:4px 7px;font-size:10px;color:#111827;border-bottom:1px solid #e5e7eb;">${item.name}</td>
-            <td style="padding:4px 7px;font-size:9.5px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:center;white-space:nowrap;">${item.unit}</td>
-            <td style="padding:4px 7px;font-size:10.5px;font-weight:700;color:#111827;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
-          </tr>`
-        )
-        .join('');
+  // Build each supplier table cell — now handled inline in the HTML template below
 
-      return `
-      <td style="vertical-align:top;padding:0 5px 10px 5px;">
-        <div style="border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">
-          <div style="background:${accent};padding:5px 8px;display:flex;align-items:center;justify-content:space-between;">
-            <span style="color:#fff;font-size:10.5px;font-weight:700;">${group.supplier}</span>
-            <span style="color:rgba(255,255,255,0.85);font-size:9px;">${group.items.length} · ${group.totalQty} qty</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;background:#fff;">
-            <thead>
-              <tr style="background:#f3f4f6;">
-                <th style="padding:4px 7px;font-size:8.5px;font-weight:600;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;">Item</th>
-                <th style="padding:4px 7px;font-size:8.5px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;width:40px;">Unit</th>
-                <th style="padding:4px 7px;font-size:8.5px;font-weight:600;color:#6b7280;text-align:center;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #e5e7eb;width:30px;">Qty</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </td>`;
-    });
-
-  // Pack into rows of 3 columns
-  const cols = 3;
-  const tableRows: string[] = [];
-  for (let i = 0; i < tableCells.length; i += cols) {
-    const chunk = tableCells.slice(i, i + cols);
-    // Pad to full row width so layout stays stable
-    while (chunk.length < cols) chunk.push('<td style="padding:0 5px 10px 5px;"></td>');
-    tableRows.push(`<tr>${chunk.join('')}</tr>`);
-  }
+  // expo-print renders HTML in a WebView and paginates by content height.
+  // To force a single landscape page we must hard-clamp the root to exactly
+  // the PDF canvas size (842 × 595 CSS px = A4 landscape at 72dpi) and set
+  // overflow:hidden so nothing bleeds onto a second page.
+  const PAGE_W = 842;
+  const PAGE_H = 595;
+  const PAD = 18; // px padding inside the page
+  const HEADER_H = 34; // px for the title row + divider
+  const FOOTER_H = 18;
+  const GRID_H = PAGE_H - PAD * 2 - HEADER_H - FOOTER_H - 6; // available for tables
 
   const html = `<!DOCTYPE html>
 <html>
@@ -299,50 +266,149 @@ export async function exportCompactOrderPDF(
   <meta charset="utf-8"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    html, body {
+      width: ${PAGE_W}px;
+      height: ${PAGE_H}px;
+      overflow: hidden;
       font-family: -apple-system, Helvetica, Arial, sans-serif;
       background: #ffffff;
-      padding: 12px 14px;
       color: #111827;
-      /* Force landscape via CSS page rule */
     }
-    @page { size: A4 landscape; margin: 10mm 12mm; }
+    .page {
+      width: ${PAGE_W}px;
+      height: ${PAGE_H}px;
+      padding: ${PAD}px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 7px;
+      border-bottom: 2px solid #111827;
+      flex-shrink: 0;
+      height: ${HEADER_H}px;
+    }
+    .grid {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      flex: 1;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .supplier-box {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .supplier-header {
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .s-name { color: #fff; font-size: 10px; font-weight: 700; }
+    .s-meta { color: rgba(255,255,255,0.85); font-size: 8.5px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    thead tr { background: #f3f4f6; }
+    th {
+      padding: 3px 6px;
+      font-size: 7.5px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th.left { text-align: left; }
+    th.center { text-align: center; width: 36px; }
+    td { padding: 3px 6px; font-size: 9px; border-bottom: 1px solid #f3f4f6; }
+    td.name { color: #111827; }
+    td.unit { color: #6b7280; text-align: center; white-space: nowrap; }
+    td.qty { color: #111827; font-weight: 700; text-align: center; }
+    .footer {
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 7.5px;
+      color: #9ca3af;
+      padding-top: 4px;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 4px;
+      height: ${FOOTER_H}px;
+    }
   </style>
 </head>
 <body>
-  <!-- Compact header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:7px;border-bottom:2px solid #111827;">
+<div class="page">
+  <div class="header">
     <div>
-      <span style="font-size:16px;font-weight:800;color:#111827;letter-spacing:-0.3px;">Purchase Order</span>
-      <span style="font-size:10px;color:#6b7280;margin-left:10px;">${orderName} &nbsp;·&nbsp; ${orderDate}${customer ? ` &nbsp;·&nbsp; For: ${customer}` : ''}</span>
+      <span style="font-size:15px;font-weight:800;letter-spacing:-0.3px;">Purchase Order</span>
+      <span style="font-size:9.5px;color:#6b7280;margin-left:10px;">${orderName} &nbsp;·&nbsp; ${orderDate}${customer ? ` &nbsp;·&nbsp; For: ${customer}` : ''}</span>
     </div>
-    <div style="font-size:10px;color:#6b7280;">
+    <div style="font-size:9.5px;color:#6b7280;">
       ${groups.length} supplier${groups.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${totalItems} items &nbsp;·&nbsp; ${totalQty} total qty
     </div>
   </div>
 
-  <!-- 3-column supplier grid using table layout for PDF compat -->
-  <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-    <colgroup>
-      <col style="width:33.33%"/>
-      <col style="width:33.33%"/>
-      <col style="width:33.33%"/>
-    </colgroup>
-    ${tableRows.join('\n    ')}
-  </table>
-
-  <div style="margin-top:8px;padding-top:6px;border-top:1px solid #e5e7eb;text-align:center;font-size:8.5px;color:#9ca3af;">
-    Generated by Purchasing App
+  <div class="grid">
+    ${(() => {
+      // Distribute suppliers across 3 columns left-to-right
+      const cols = 3;
+      const columns: SupplierGroup[][] = Array.from({ length: cols }, () => []);
+      groups.forEach((g, i) => columns[i % cols].push(g));
+      return columns.map((colGroups) => {
+        if (colGroups.length === 0) return '<div class="col"></div>';
+        const boxes = colGroups.map((group) => {
+          const accent = SUPPLIER_ACCENT[group.supplier] ?? '#2563EB';
+          const rows = group.items.map((item, i) => `
+            <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
+              <td class="name">${item.name}</td>
+              <td class="unit">${item.unit}</td>
+              <td class="qty">${item.quantity}</td>
+            </tr>`).join('');
+          return `
+          <div class="supplier-box">
+            <div class="supplier-header" style="background:${accent};">
+              <span class="s-name">${group.supplier}</span>
+              <span class="s-meta">${group.items.length} · ${group.totalQty} qty</span>
+            </div>
+            <table>
+              <thead><tr>
+                <th class="left">Item</th>
+                <th class="center">Unit</th>
+                <th class="center">Qty</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+        }).join('');
+        return `<div class="col">${boxes}</div>`;
+      }).join('');
+    })()}
   </div>
+
+  <div class="footer">Generated by Purchasing App</div>
+</div>
 </body>
 </html>`;
 
-  // landscape: A4 = 841.89 x 595.28 pts — pass explicit dimensions
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,
-    width: 842,
-    height: 595,
+    width: PAGE_W,
+    height: PAGE_H,
   });
 
   const canShare = await Sharing.isAvailableAsync();
