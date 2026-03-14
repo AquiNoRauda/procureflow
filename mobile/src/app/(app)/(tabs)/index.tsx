@@ -71,8 +71,10 @@ export default function OrdersScreen() {
     [orders, activeOrderId]
   );
 
+  const isCreatingRef = useRef(false);
+
   useEffect(() => {
-    if (createOrder.isPending) return;
+    if (isCreatingRef.current || createOrder.isPending) return;
 
     const draftOrders = orders.filter((o) => o.status === 'draft');
 
@@ -80,9 +82,18 @@ export default function OrdersScreen() {
       if (draftOrders.length > 0) {
         setActiveOrderId(draftOrders[0].id);
       } else if (draftOrders.length === 0) {
+        isCreatingRef.current = true;
         createOrder.mutate(
           { name: 'Order #1' },
-          { onSuccess: (newOrder: Order) => setActiveOrderId(newOrder.id) }
+          {
+            onSuccess: (newOrder: Order) => {
+              setActiveOrderId(newOrder.id);
+              isCreatingRef.current = false;
+            },
+            onError: () => {
+              isCreatingRef.current = false;
+            },
+          }
         );
       }
     }
