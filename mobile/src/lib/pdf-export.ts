@@ -256,10 +256,11 @@ export async function exportCompactOrderPDF(
   // Measured conservatively to prevent clipping.
   const ROW_H = 17;        // px per data row (font 9 + pad 3*2 + border 1 + rounding)
   const BOX_OVERHEAD = 56; // px per supplier box overhead (header + thead + gap + borders)
-  const PAGE_W = 842;
-  const PAGE_H = 595;
+  // Portrait A4: 595 wide × 842 tall
+  const PAGE_W = 595;
+  const PAGE_H = 842;
   // Tight margins: 8px padding, 32px header, 16px footer, 6px gap
-  const AVAIL_H = 595 - 8 * 2 - 32 - 16 - 6; // = 525
+  const AVAIL_H = PAGE_H - 8 * 2 - 32 - 16 - 6; // = 772
 
   // Balance columns by item count (greedy bin-packing) — do this FIRST
   // so scale calculation uses the real column distribution.
