@@ -28,8 +28,8 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
         </Stack.Protected>
         <Stack.Protected guard={!session?.user}>
           <Stack.Screen name="sign-in" />
-          <Stack.Screen name="verify-otp" />
         </Stack.Protected>
+        <Stack.Screen name="verify-otp" />
         <Stack.Screen
           name="order-picker"
           options={{

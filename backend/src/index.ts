@@ -6,6 +6,7 @@ import { auth } from "./auth";
 import { purchaseRouter } from "./routes/purchases";
 import { catalogRouter } from "./routes/catalog";
 import { ordersRouter } from "./routes/orders";
+import { accountRouter } from "./routes/account";
 import { prisma } from "./prisma";
 import { randomUUID } from "crypto";
 
@@ -53,6 +54,7 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/purchases", purchaseRouter);
 app.route("/api/catalog", catalogRouter);
 app.route("/api/orders", ordersRouter);
+app.route("/api/account", accountRouter);
 
 // Startup migration: assign orphan PurchaseItems (no orderId) to a "Previous Order"
 async function runStartupMigration() {
