@@ -3,14 +3,14 @@
     "name": "ProcureFlow",
     "slug": "procureflow",
     "scheme": "vibecode",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "angel.aquino.procureflow-himalayan",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {}
     },
     "android": {
