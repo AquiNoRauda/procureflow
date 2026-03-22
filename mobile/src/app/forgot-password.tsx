@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { authClient } from '@/lib/auth/auth-client';
 import { Mail, ArrowLeft, CheckCircle, Lock, Eye, EyeOff } from 'lucide-react-native';
+
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL as string;
 
 const inputStyle = {
   backgroundColor: '#1E293B',
@@ -37,15 +38,23 @@ export default function ForgotPasswordScreen() {
     if (!trimmed) { setError('Please enter your email address.'); return; }
     setLoading(true);
     setError(null);
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: trimmed,
-      type: 'forget-password',
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError(result.error.message ?? 'Something went wrong. Please try again.');
-    } else {
-      setStep('code');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/forget-password/email-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({})) as { message?: string };
+      if (!res.ok) {
+        setError((data as { message?: string }).message ?? 'Something went wrong. Please try again.');
+      } else {
+        setStep('code');
+      }
+    } catch {
+      setError('Network error. Please check your connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,16 +64,23 @@ export default function ForgotPasswordScreen() {
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
     setLoading(true);
     setError(null);
-    const result = await authClient.emailOtp.resetPassword({
-      email: email.trim().toLowerCase(),
-      otp: otp.trim(),
-      password: newPassword,
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError(result.error.message ?? 'Invalid or expired code. Please try again.');
-    } else {
-      setSuccess(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/email-otp/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim(), password: newPassword }),
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({})) as { message?: string };
+      if (!res.ok) {
+        setError((data as { message?: string }).message ?? 'Invalid or expired code. Please try again.');
+      } else {
+        setSuccess(true);
+      }
+    } catch {
+      setError('Network error. Please check your connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,7 +101,6 @@ export default function ForgotPasswordScreen() {
             </Text>
             <Pressable
               onPress={() => router.replace('/sign-in')}
-              testID="go-to-signin-button"
               style={{
                 backgroundColor: '#2563EB', borderRadius: 14,
                 paddingVertical: 14, alignItems: 'center', width: '100%',
@@ -118,7 +133,6 @@ export default function ForgotPasswordScreen() {
               </Text>
             </Pressable>
 
-            {/* Header */}
             <View style={{ alignItems: 'center', marginBottom: 32 }}>
               <View style={{
                 width: 72, height: 72, borderRadius: 20,
@@ -154,7 +168,6 @@ export default function ForgotPasswordScreen() {
                   returnKeyType="done"
                   onSubmitEditing={handleSendCode}
                   style={inputStyle}
-                  testID="email-input"
                 />
 
                 {error != null && (
@@ -170,7 +183,6 @@ export default function ForgotPasswordScreen() {
                 <Pressable
                   onPress={handleSendCode}
                   disabled={loading}
-                  testID="send-code-button"
                   style={{
                     backgroundColor: '#2563EB', borderRadius: 14,
                     paddingVertical: 15, alignItems: 'center', marginTop: 20,
@@ -184,7 +196,6 @@ export default function ForgotPasswordScreen() {
               </>
             ) : (
               <>
-                {/* OTP Code */}
                 <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.5 }}>
                   RESET CODE
                 </Text>
@@ -199,10 +210,8 @@ export default function ForgotPasswordScreen() {
                   returnKeyType="next"
                   maxLength={6}
                   style={[inputStyle, { letterSpacing: 8, fontSize: 22, textAlign: 'center' }]}
-                  testID="otp-input"
                 />
 
-                {/* New Password */}
                 <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, marginTop: 20, letterSpacing: 0.5 }}>
                   NEW PASSWORD
                 </Text>
@@ -217,14 +226,12 @@ export default function ForgotPasswordScreen() {
                     autoCorrect={false}
                     returnKeyType="next"
                     style={[inputStyle, { paddingRight: 50 }]}
-                    testID="new-password-input"
                   />
                   <Pressable onPress={() => setShowNew(!showNew)} style={{ position: 'absolute', right: 16, top: 14 }}>
                     {showNew ? <EyeOff size={20} color="#475569" /> : <Eye size={20} color="#475569" />}
                   </Pressable>
                 </View>
 
-                {/* Confirm Password */}
                 <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.5 }}>
                   CONFIRM PASSWORD
                 </Text>
@@ -240,7 +247,6 @@ export default function ForgotPasswordScreen() {
                     returnKeyType="done"
                     onSubmitEditing={handleResetPassword}
                     style={[inputStyle, { paddingRight: 50 }]}
-                    testID="confirm-password-input"
                   />
                   <Pressable onPress={() => setShowConfirm(!showConfirm)} style={{ position: 'absolute', right: 16, top: 14 }}>
                     {showConfirm ? <EyeOff size={20} color="#475569" /> : <Eye size={20} color="#475569" />}
@@ -267,7 +273,6 @@ export default function ForgotPasswordScreen() {
                 <Pressable
                   onPress={handleResetPassword}
                   disabled={loading}
-                  testID="reset-password-button"
                   style={{
                     backgroundColor: '#2563EB', borderRadius: 14,
                     paddingVertical: 15, alignItems: 'center', marginTop: 20,
@@ -279,10 +284,7 @@ export default function ForgotPasswordScreen() {
                   }
                 </Pressable>
 
-                <Pressable
-                  onPress={handleSendCode}
-                  disabled={loading}
-                  style={{ alignItems: 'center', marginTop: 16 }}>
+                <Pressable onPress={handleSendCode} disabled={loading} style={{ alignItems: 'center', marginTop: 16 }}>
                   <Text style={{ color: '#60A5FA', fontSize: 14 }}>Resend code</Text>
                 </Pressable>
               </>
