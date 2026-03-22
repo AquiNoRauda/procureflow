@@ -13,7 +13,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     resetPasswordTokenExpiresIn: 3600,
-    sendResetPasswordEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
+    sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
       await fetch("https://smtp.vibecodeapp.com/v1/send/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
