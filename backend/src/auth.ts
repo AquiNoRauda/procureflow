@@ -43,7 +43,7 @@ export const auth = betterAuth({
     expo(),
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
-        if (type !== "sign-in") return;
+        if (type !== "sign-in" && type !== "forget-password") return;
         const response = await fetch("https://smtp.vibecodeapp.com/v1/send/otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
