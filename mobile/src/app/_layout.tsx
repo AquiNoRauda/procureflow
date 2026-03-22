@@ -30,6 +30,8 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="sign-in" />
         </Stack.Protected>
         <Stack.Screen name="verify-otp" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
         <Stack.Screen
           name="order-picker"
           options={{

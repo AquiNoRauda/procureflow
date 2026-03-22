@@ -12,6 +12,19 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    resetPasswordTokenExpiresIn: 3600,
+    sendResetPasswordEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
+      await fetch("https://smtp.vibecodeapp.com/v1/send/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: user.email,
+          subject: "Reset your password",
+          body: `Click the link below to reset your password:\n\n${url}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
+          projectId: "019cd088-08ea-7482-b034-b9c41bcee48c",
+        }),
+      });
+    },
   },
 
   trustedOrigins: [

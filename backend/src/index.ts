@@ -7,6 +7,7 @@ import { purchaseRouter } from "./routes/purchases";
 import { catalogRouter } from "./routes/catalog";
 import { ordersRouter } from "./routes/orders";
 import { accountRouter } from "./routes/account";
+import { backupRouter } from "./routes/backup";
 import { prisma } from "./prisma";
 import { randomUUID } from "crypto";
 
@@ -55,6 +56,7 @@ app.route("/api/purchases", purchaseRouter);
 app.route("/api/catalog", catalogRouter);
 app.route("/api/orders", ordersRouter);
 app.route("/api/account", accountRouter);
+app.route("/api/backup", backupRouter);
 
 // Startup migration: assign orphan PurchaseItems (no orderId) to a "Previous Order"
 async function runStartupMigration() {

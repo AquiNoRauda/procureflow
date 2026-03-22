@@ -4,11 +4,13 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { ShoppingCart, Eye, EyeOff } from 'lucide-react-native';
 
 export default function SignInScreen() {
+  const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -180,6 +182,16 @@ export default function SignInScreen() {
                   : <Eye size={20} color="#475569" />}
               </Pressable>
             </View>
+
+            {/* Forgot password (sign in only) */}
+            {mode === 'signin' && (
+              <Pressable
+                onPress={() => router.push('/forgot-password')}
+                testID="forgot-password-link"
+                style={{ alignSelf: 'flex-end', marginTop: 8, marginBottom: 4 }}>
+                <Text style={{ color: '#60A5FA', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+              </Pressable>
+            )}
 
             {error != null && (
               <View style={{
