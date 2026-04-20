@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -191,6 +192,8 @@ function ItemModal({
 
 export default function CatalogScreen() {
   const isDark = useColorScheme() === 'dark';
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
   const { data } = useCatalog();
   const suppliers = data?.suppliers ?? [];
@@ -290,7 +293,9 @@ export default function CatalogScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={isDesktop ? [] : ['top']}>
+        <View style={isDesktop ? { flex: 1, alignItems: 'center' } : { flex: 1 }}>
+        <View style={isDesktop ? { width: '100%', maxWidth: 900, flex: 1 } : { flex: 1 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>Catalog</Text>
@@ -380,6 +385,8 @@ export default function CatalogScreen() {
             })
           )}
         </ScrollView>
+        </View>
+        </View>
       </SafeAreaView>
 
       <SupplierModal

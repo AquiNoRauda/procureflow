@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, Pressable, Modal, ActivityIndicator, ScrollView, Alert,
+  View, Text, Pressable, Modal, ActivityIndicator, ScrollView, Alert, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authClient } from '@/lib/auth/auth-client';
@@ -51,6 +51,9 @@ export default function ProfileScreen() {
   const [pendingRestoreUri, setPendingRestoreUri] = useState<string | null>(null);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
+
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
   const bg = isDark ? '#0F172A' : '#F8FAFC';
   const card = isDark ? '#1E293B' : '#FFFFFF';
@@ -187,7 +190,9 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={isDesktop ? [] : ['top']}>
+        <View style={isDesktop ? { flex: 1, alignItems: 'center' } : { flex: 1 }}>
+        <View style={isDesktop ? { width: '100%', maxWidth: 900, flex: 1 } : { flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
@@ -371,6 +376,8 @@ export default function ProfileScreen() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+        </View>
+        </View>
       </SafeAreaView>
 
       {/* Restore confirmation modal */}

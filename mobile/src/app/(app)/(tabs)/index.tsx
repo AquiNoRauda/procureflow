@@ -8,6 +8,7 @@ import {
   Keyboard,
   Alert,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -59,6 +60,8 @@ function parseBulkInput(text: string): Array<{ name: string; qty: number }> {
 export default function OrdersScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
   const { data: orders = [] } = useOrders();
   const createOrder = useCreateOrder();
@@ -314,7 +317,9 @@ export default function OrdersScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={isDesktop ? [] : ['top']}>
+        <View style={isDesktop ? { flex: 1, alignItems: 'center' } : { flex: 1 }}>
+        <View style={isDesktop ? { width: '100%', maxWidth: 900, flex: 1 } : { flex: 1 }}>
         {/* Header */}
         <View className="px-5 pt-2 pb-3">
           <View className="flex-row items-center justify-between">
@@ -474,6 +479,8 @@ export default function OrdersScreen() {
             onScrollBeginDrag={Keyboard.dismiss}
           />
         )}
+        </View>
+        </View>
       </SafeAreaView>
     </View>
   );

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -29,6 +30,8 @@ interface SupplierSection {
 export default function SupplierScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
   const activeOrderId = useOrderStore((s) => s.activeOrderId);
   const { data: items = [] } = usePurchases(activeOrderId);
@@ -272,7 +275,9 @@ export default function SupplierScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={isDesktop ? [] : ['top']}>
+        <View style={isDesktop ? { flex: 1, alignItems: 'center' } : { flex: 1 }}>
+        <View style={isDesktop ? { width: '100%', maxWidth: 900, flex: 1 } : { flex: 1 }}>
         {/* Header */}
         <View className="px-5 pt-2 pb-3">
           <View className="flex-row items-center justify-between">
@@ -356,6 +361,8 @@ export default function SupplierScreen() {
             stickySectionHeadersEnabled={false}
           />
         )}
+        </View>
+        </View>
       </SafeAreaView>
     </View>
   );
