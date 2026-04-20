@@ -15,6 +15,7 @@ export interface CatalogItem {
   supplierName: string;
   unit: string;
   category: string;
+  description?: string;
   userId: string;
 }
 
@@ -66,6 +67,7 @@ export function useAddCatalogItem() {
       supplierName: string;
       unit: string;
       category: string;
+      description?: string;
     }) => api.post<CatalogItem>("/api/catalog/items", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: CATALOG_KEY }),
   });
@@ -74,8 +76,8 @@ export function useAddCatalogItem() {
 export function useUpdateCatalogItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, name, unit, category }: { id: string; name: string; unit: string; category: string }) =>
-      api.patch<CatalogItem>(`/api/catalog/items/${id}`, { name, unit, category }),
+    mutationFn: ({ id, name, unit, category, description }: { id: string; name: string; unit: string; category: string; description?: string }) =>
+      api.patch<CatalogItem>(`/api/catalog/items/${id}`, { name, unit, category, description }),
     onSuccess: () => qc.invalidateQueries({ queryKey: CATALOG_KEY }),
   });
 }

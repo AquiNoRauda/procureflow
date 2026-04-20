@@ -116,12 +116,13 @@ function ItemModal({
   supplier: CatalogSupplier | null;
   existingItem: CatalogItem | null;
   onClose: () => void;
-  onSave: (name: string, unit: string, category: string) => void;
+  onSave: (name: string, unit: string, category: string, description: string) => void;
 }) {
   const isDark = useColorScheme() === 'dark';
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
 
   const isEditing = existingItem != null;
 
@@ -130,6 +131,7 @@ function ItemModal({
       setName(existingItem?.name ?? '');
       setUnit(existingItem?.unit ?? '');
       setCategory(existingItem?.category ?? '');
+      setDescription(existingItem?.description ?? '');
     }
   }, [visible, existingItem]);
 
@@ -163,8 +165,20 @@ function ItemModal({
                   style={{ backgroundColor: inputBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: textColor }} />
               </View>
             ))}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ color: secondary, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>DESCRIPTION (optional)</Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="e.g. Organic, refrigerated, 1L bottles…"
+                placeholderTextColor={secondary}
+                multiline
+                numberOfLines={3}
+                style={{ backgroundColor: inputBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: textColor, minHeight: 80, textAlignVertical: 'top' }}
+              />
+            </View>
             <TouchableOpacity
-              onPress={() => { if (name.trim() && unit.trim()) onSave(name.trim(), unit.trim(), category.trim() || 'General'); }}
+              onPress={() => { if (name.trim() && unit.trim()) onSave(name.trim(), unit.trim(), category.trim() || 'General', description.trim()); }}
               style={{ marginTop: 4, backgroundColor: accent, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{isEditing ? 'Save Changes' : 'Add Item'}</Text>
             </TouchableOpacity>
@@ -249,19 +263,19 @@ export default function CatalogScreen() {
       ]);
   }, [catalogItems, removeSupplierMut]);
 
-  const handleAddItem = useCallback((name: string, unit: string, category: string) => {
+  const handleAddItem = useCallback((name: string, unit: string, category: string, description: string) => {
     const { supplier } = itemModal;
     if (!supplier) return;
-    addItemMut.mutate({ id: Math.random().toString(36).slice(2), name, supplierId: supplier.id, supplierName: supplier.name, unit, category });
+    addItemMut.mutate({ id: Math.random().toString(36).slice(2), name, supplierId: supplier.id, supplierName: supplier.name, unit, category, description: description || undefined });
     setItemModal({ visible: false, supplier: null, existingItem: null });
     setExpandedIds((prev) => new Set(prev).add(supplier.id));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [itemModal, addItemMut]);
 
-  const handleEditItem = useCallback((name: string, unit: string, category: string) => {
+  const handleEditItem = useCallback((name: string, unit: string, category: string, description: string) => {
     const { existingItem } = itemModal;
     if (!existingItem) return;
-    updateItemMut.mutate({ id: existingItem.id, name, unit, category });
+    updateItemMut.mutate({ id: existingItem.id, name, unit, category, description: description || undefined });
     setItemModal({ visible: false, supplier: null, existingItem: null });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [itemModal, updateItemMut]);
@@ -341,6 +355,9 @@ export default function CatalogScreen() {
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>{item.name}</Text>
                             <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 1 }}>{item.unit} · {item.category}</Text>
+                            {item.description != null && item.description.length > 0 && (
+                              <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2, fontStyle: 'italic' }}>{item.description}</Text>
+                            )}
                           </View>
                           <TouchableOpacity onPress={() => setItemModal({ visible: true, supplier, existingItem: item })} style={{ padding: 6 }}>
                             <Edit2 size={14} color={colors.textSecondary} />

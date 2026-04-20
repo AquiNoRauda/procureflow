@@ -90,6 +90,7 @@ app.post("/items", async (c) => {
     supplierName: string;
     unit: string;
     category: string;
+    description?: string;
   }>();
 
   const item = await prisma.catalogItem.create({
@@ -105,14 +106,14 @@ app.patch("/items/:id", async (c) => {
   const user = c.get("user")!;
 
   const { id } = c.req.param();
-  const body = await c.req.json<{ name: string; unit: string; category: string }>();
+  const body = await c.req.json<{ name: string; unit: string; category: string; description?: string }>();
 
   const existing = await prisma.catalogItem.findFirst({ where: { id, userId: user.id } });
   if (!existing) return c.json({ error: { message: "Item not found" } }, 404);
 
   const updatedItem = await prisma.catalogItem.update({
     where: { id },
-    data: { name: body.name, unit: body.unit, category: body.category },
+    data: { name: body.name, unit: body.unit, category: body.category, description: body.description },
   });
 
   return c.json({ data: updatedItem });

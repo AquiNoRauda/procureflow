@@ -108,6 +108,7 @@ model CatalogItem {
   supplierName String
   unit         String
   category     String
+  description  String?
   userId       String
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   supplier     CatalogSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)

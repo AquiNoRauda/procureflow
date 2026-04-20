@@ -15,6 +15,7 @@ export interface CatalogItem {
   supplierName: string;
   unit: string;
   category: string;
+  description?: string;
 }
 
 // Preset palette for new suppliers
@@ -32,9 +33,9 @@ interface CatalogStore {
   updateSupplier: (id: string, name: string, color: string) => void;
   removeSupplier: (id: string) => void;
 
-  addItem: (supplierId: string, supplierName: string, name: string, unit: string, category: string) => void;
+  addItem: (supplierId: string, supplierName: string, name: string, unit: string, category: string, description?: string) => void;
   removeItem: (id: string) => void;
-  updateItem: (id: string, name: string, unit: string, category: string) => void;
+  updateItem: (id: string, name: string, unit: string, category: string, description?: string) => void;
 }
 
 function makeId() {
@@ -134,8 +135,8 @@ const useCatalogStore = create<CatalogStore>()(
         });
       },
 
-      addItem: (supplierId, supplierName, name, unit, category) => {
-        const item: CatalogItem = { id: makeId(), name, supplierId, supplierName, unit, category };
+      addItem: (supplierId, supplierName, name, unit, category, description) => {
+        const item: CatalogItem = { id: makeId(), name, supplierId, supplierName, unit, category, description };
         set({ items: [...get().items, item] });
       },
 
@@ -143,9 +144,9 @@ const useCatalogStore = create<CatalogStore>()(
         set({ items: get().items.filter((i) => i.id !== id) });
       },
 
-      updateItem: (id, name, unit, category) => {
+      updateItem: (id, name, unit, category, description) => {
         set({
-          items: get().items.map((i) => (i.id === id ? { ...i, name, unit, category } : i)),
+          items: get().items.map((i) => (i.id === id ? { ...i, name, unit, category, description } : i)),
         });
       },
     }),
